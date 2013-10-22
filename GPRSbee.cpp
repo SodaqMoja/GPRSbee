@@ -486,6 +486,7 @@ bool GPRSbeeClass::receiveLineTCP(char **buffer, uint16_t timeout)
   uint32_t ts_max;
   bool retval = false;
 
+  *buffer = NULL;
   ts_max = millis() + timeout;
   if (readLine(ts_max) < 0) {
     goto ending;
