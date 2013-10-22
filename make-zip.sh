@@ -16,7 +16,9 @@ TDIR=/tmp/$DIRNAME
 [ -d "${TDIR}" ] && { echo "ERROR: Directory '${TDIR}' exists. Please remove."; exit 1; }
 
 mkdir -p ${TDIR}
-cp ${FILES} ${TDIR}/
+git ls-files |
+grep -v .gitignore |
+cpio -pmud ${TDIR}/
 (cd /tmp && zip -r $ZIPNAME.zip $DIRNAME)
 mv /tmp/$ZIPNAME.zip .
 rm -fr ${TDIR}
