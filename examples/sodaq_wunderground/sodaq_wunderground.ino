@@ -65,13 +65,11 @@ Current settings:
 
 #include <Adafruit_BMP085.h>
 #include <SHT2x.h>
-#include <DS3231.h>
+#include <Sodaq_DS3231.h>
 #include <SoftwareSerial.h>
 #include <dataflash.h>
 #include <Wire.h>
 #include <GPRSbee.h>
-
-#include "MyDS3231.h"
 
 #define CONFIG_EEPROM_ADDRESS   0x200
 #define APN "internet.access.nl"
@@ -127,6 +125,7 @@ void getSettings();
 void readConfig();
 void updateConfig();
 void sendPWS(const char *server, const char *url);
+void getNowUrlEscaped(char *buffer);
 
 //#########    setup        #############
 void setup()
@@ -141,15 +140,15 @@ void setup()
   // Make sure the GPRSbee is switched off
   gprsbee.off();
 
-  bmp.begin();
-  setupDS3231();
+  bmp.begin();  // This also does Wire.begin();
+  rtc.begin();
   getSettings();
 
   setupWatchdog();
 
   interrupts();
 
-  triggerTimeB = getTSDS3231() + 10;        // This will trigger timeB action right away
+  triggerTimeB = rtc.now().getEpoch() + 10;        // This will trigger timeB action right away
 }
 
 void loop()
@@ -179,7 +178,7 @@ void timeA_action()
   doTimeA = false;
   helloTimeA();
 
-  myTimeStamp = getTSDS3231();
+  myTimeStamp = rtc.now().getEpoch();
   if (myTimeStamp >= triggerTimeB) {
     doTimeB = true;
   }
@@ -434,7 +433,7 @@ void getSettings()
   bool need_config_update = false;
   int ix;
 
-  myTimeStamp = getTSDS3231();
+  myTimeStamp = rtc.now().getEpoch();
   // Read setting from EEPROM
   readConfig();
 
@@ -456,7 +455,7 @@ void getSettings()
           need_config_update = true;
         }
         if (s->value == &myTimeStamp) {
-          setRTC(myTimeStamp);
+          rtc.setEpoch(myTimeStamp);
         }
       }
       continue;
@@ -497,4 +496,37 @@ void sendPWS(const char *server, const char *url)
   while (gprsbee.receiveLineTCP(&ptr, 4000)) {
     // Ignore the result
   }
+}
+
+static void utoa_2d(uint16_t value, char *ptr, int radix)
+{
+  if (value < 10) {
+    *ptr++ = '0';
+  }
+  utoa(value, ptr, radix);
+}
+
+/*
+ * \brief Get the date and time in URL escaped format (':' => %3A, etc)
+ */
+void getNowUrlEscaped(char *buffer)
+{
+  DateTime dt = rtc.now();
+  char *ptr = buffer;
+  utoa(dt.year(), ptr, 10);
+  strcat(ptr, "-");
+  ptr += strlen(ptr);
+  utoa_2d(dt.month(), ptr, 10);
+  strcat(ptr, "-");
+  ptr += strlen(ptr);
+  utoa_2d(dt.date(), ptr, 10);
+  strcat(ptr, "+");
+  ptr += strlen(ptr);
+  utoa_2d(dt.hour(), ptr, 10);
+  strcat(ptr, "%3A");
+  ptr += strlen(ptr);
+  utoa_2d(dt.minute(), ptr, 10);
+  strcat(ptr, "%3A");
+  ptr += strlen(ptr);
+  utoa_2d(dt.second(), ptr, 10);
 }
