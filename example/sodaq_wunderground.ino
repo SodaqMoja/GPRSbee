@@ -71,8 +71,6 @@ Current settings:
 #include <Wire.h>
 #include <GPRSbee.h>
 
-#include "pindefs.h"
-#include "Diag.h"
 #include "MyDS3231.h"
 
 #define CONFIG_EEPROM_ADDRESS   0x200
@@ -89,6 +87,14 @@ char timeA_counter;
 boolean doTimeA;
 boolean doTimeB;
 
+//#########   pin definitions   ########
+#define GPRSBEE_PWRPIN  8
+#define XBEECTS_PIN     9
+
+#define DIAGPORT_RX     10
+#define DIAGPORT_TX     11
+
+
 //######### modifiable settings ########
 struct eeprom_config_t
 {
@@ -96,6 +102,19 @@ struct eeprom_config_t
   char pws_password[16];
   uint32_t timeB_interval;
 } config;
+
+//#########   diagnostic    #############
+// Uncomment or make it an #udef to disable diagnostic output
+#define ENABLE_DIAG     1
+
+#ifdef ENABLE_DIAG
+extern SoftwareSerial diagport;
+#define DIAGPRINT(...)          diagport.print(__VA_ARGS__)
+#define DIAGPRINTLN(...)        diagport.println(__VA_ARGS__)
+#else
+#define DIAGPRINT(...)
+#define DIAGPRINTLN(...)
+#endif
 
 
 //######### forward declare #############
@@ -112,11 +131,12 @@ void sendPWS(const char *server, const char *url);
 //#########    setup        #############
 void setup()
 {
-#ifdef ENABLE_DIAG
-  diagport.begin(9600);
-#endif
   Serial1.begin(9600);      // Serial1 is connected to SIM900 GPRSbee
   gprsbee.init(Serial1, XBEECTS_PIN, GPRSBEE_PWRPIN);
+#ifdef ENABLE_DIAG
+  diagport.begin(9600);
+  gprsbee.setDiag(diagport);
+#endif
 
   // Make sure the GPRSbee is switched off
   gprsbee.off();
@@ -124,10 +144,6 @@ void setup()
   bmp.begin();
   setupDS3231();
   getSettings();
-
-  pinMode(BATSTATPIN, INPUT_PULLUP);    // ?? INPUT_PULLUP or INPUT
-
-  dflash.init(DF_MISO, DF_MOSI, DF_SPICLOCK, DF_SLAVESELECT);
 
   setupWatchdog();
 
@@ -168,7 +184,7 @@ void timeA_action()
     doTimeB = true;
   }
 
-  // Do some work at one second interval
+  // Do some work
   // ...
 }
 
@@ -237,6 +253,7 @@ ISR(WDT_vect)
 {
   wdt_reset();
 
+  // This gives us an interval for timeA of about 15*60ms = 1 second
   if (++timeA_counter >= 15) {
     timeA_counter = 0;
     doTimeA = true;
@@ -468,7 +485,7 @@ void sendPWS(const char *server, const char *url)
   strcat(ptr, "Host: ");
   strcat(ptr, server);
   strcat(ptr, "\r\n");
-  strcat(ptr, "Accept: */*\r\n");
+  strcat(ptr, "Accept: *" "/" "*\r\n");    // Arduino IDE gets confused about * / * in string, grrr.
   strcat(ptr, "\r\n");
   len = strlen(buffer);
   DIAGPRINT(">> GET length: "); DIAGPRINTLN(len);
@@ -477,9 +494,7 @@ void sendPWS(const char *server, const char *url)
     DIAGPRINTLN("sendDataTCP failed!");
   }
 
-  uint32_t ts_max;
-  ts_max = millis() + 4000;             // Is this enough?
-  while (gprsbee.receiveLineTCP(&ptr, ts_max) >= 0) {
+  while (gprsbee.receiveLineTCP(&ptr, 4000)) {
     // Ignore the result
   }
 }

@@ -30,6 +30,7 @@ public:
   void init(Stream &stream, int ctsPin, int powerPin);
   bool on();
   bool off();
+  void setDiag(Stream &stream) { _diagStream = &stream; }
 
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
@@ -56,10 +57,15 @@ private:
   // Small utility to see if we timed out
   bool isTimedOut(uint32_t ts) { return (long)(millis() - ts) >= 0; }
 
+  void diagPrint(const char *str) { if (_diagStream) _diagStream->print(str); }
+  void diagPrintLn(const char *str) { if (_diagStream) _diagStream->println(str); }
+  void diagPrint(char c) { if (_diagStream) _diagStream->print(c); }
+
 #define SIM900_BUFLEN 64
   char _SIM900_buffer[SIM900_BUFLEN + 1];           // +1 for the 0 byte
   int _SIM900_bufcnt;
   Stream *_myStream;
+  Stream *_diagStream;
   int _ctsPin;
   int _powerPin;
   int _minSignalQuality;
