@@ -108,7 +108,7 @@ struct eeprom_config_t
 #define ENABLE_DIAG     1
 
 #ifdef ENABLE_DIAG
-extern SoftwareSerial diagport;
+SoftwareSerial diagport(DIAGPORT_RX, DIAGPORT_TX);
 #define DIAGPRINT(...)          diagport.print(__VA_ARGS__)
 #define DIAGPRINTLN(...)        diagport.println(__VA_ARGS__)
 #else
