@@ -499,3 +499,251 @@ bool GPRSbeeClass::receiveLineTCP(char **buffer, uint16_t timeout)
 ending:
   return retval;
 }
+
+/*
+ * \brief Open a (FTP) session (one file)
+ */
+bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *username, const char *password)
+{
+  char cmd[64];
+  int retry;
+
+  if (!on()) {
+    goto ending;
+  }
+
+  // Suppress echoing
+  if (!sendCommandWaitForOK("ATE0")) {
+    goto ending;
+  }
+
+  // Wait for signal quality
+  if (!waitForSignalQuality()) {
+    goto ending;
+  }
+
+  // Wait for CREG
+  if (!waitForCREG()) {
+      goto ending;
+    }
+
+  // Attach to GPRS service
+  // We need a longer timeout than the normal waitForOK
+  if (!sendCommandWaitForOK("AT+CGATT=1", 6000)) {
+    goto ending;
+  }
+
+  if (!sendCommandWaitForOK("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"")) {
+    goto ending;
+  }
+
+  //snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", apn);
+  strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
+  strcat(cmd, apn);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto ending;
+  }
+
+  // This command can fail if signal quality is low, or if we're too fast
+  for (retry = 0; retry < 5; retry++) {
+    if (sendCommandWaitForOK("AT+SAPBR=1,1")) {
+      break;
+    }
+  }
+  if (retry >= 5) {
+    goto ending;
+  }
+
+  if (!sendCommandWaitForOK("AT+SAPBR=2,1")) {
+    goto ending;
+  }
+
+  if (!sendCommandWaitForOK("AT+FTPCID=1")) {
+    goto ending;
+  }
+
+  // connect to FTP server
+  //snprintf(cmd, sizeof(cmd), "AT+FTPSERV=\"%s\"", server);
+  strcpy(cmd, "AT+FTPSERV=\"");
+  strcat(cmd, server);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto ending;
+  }
+
+  // optional "AT+FTPPORT=21";
+  //snprintf(cmd, sizeof(cmd), "AT+FTPUN=\"%s\"", username);
+  strcpy(cmd, "AT+FTPUN=\"");
+  strcat(cmd, username);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto ending;
+  }
+  //snprintf(cmd, sizeof(cmd), "AT+FTPPW=\"%s\"", password);
+  strcpy(cmd, "AT+FTPPW=\"");
+  strcat(cmd, password);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto ending;
+  }
+
+  return true;
+
+ending:
+  return false;
+}
+
+bool GPRSbeeClass::closeFTP()
+{
+  off();            // Ignore errors
+  return true;
+}
+
+/*
+ * \brief Open a (FTP) session (one file)
+ */
+bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
+{
+  char cmd[64];
+  int retry;
+  uint32_t ts_max;
+
+  // Open FTP file
+  //snprintf(cmd, sizeof(cmd), "AT+FTPPUTNAME=\"%s\"", fname);
+  strcpy(cmd, "AT+FTPPUTNAME=\"");
+  strcat(cmd, fname);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto ending;
+  }
+  //snprintf(cmd, sizeof(cmd), "AT+FTPPUTPATH=\"%s\"", FTPPATH);
+  strcpy(cmd, "AT+FTPPUTPATH=\"");
+  strcat(cmd, path);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto ending;
+  }
+
+  // Repeat until we get OK
+  for (retry = 0; retry < 5; retry++) {
+    if (sendCommandWaitForOK("AT+FTPPUT=1")) {
+      break;
+    }
+  }
+  if (retry >= 5) {
+    goto ending;
+  }
+
+  // +FTPPUT:1,1,1360  <= the 1360 is <maxlength>
+  // +FTPPUT:1,66      <= this is an error
+  ts_max = millis() + 6000;
+  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+    goto ending;
+  }
+  if (strncmp(_SIM900_buffer + 10, "1,", 2) != 0) {
+    // We did NOT get "+FTPPUT:1,1,", it might be an error.
+    // Sometimes we see:
+    //    +FTPPUT:1,66
+    // The doc says that 66 is the error, but 66 is not documented
+    goto ending;
+  }
+  _ftpMaxLength = strtol(_SIM900_buffer + 12, NULL, 0);
+
+  return true;
+
+ending:
+  return false;
+}
+
+bool GPRSbeeClass::closeFTPfile()
+{
+  // Close file
+  if (!sendCommandWaitForOK("AT+FTPPUT=2,0")) {
+    return false;
+  }
+
+  /*
+   * FIXME
+   * Something weird happens here. If we wait too short (e.g. 4000)
+   * then still no reply. But then when we switch off the SIM900 the
+   * message +FTPPUT:1,nn message comes in, right before AT-OK or
+   * +SAPBR 1: DEACT
+   *
+   * It is such a waste to wait that long (battery life and such).
+   * The FTP file seems to be closed properly, so why bother?
+   */
+  // +FTPPUT:1,0
+  uint32_t ts_max = millis() + 10000;
+  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+    // How bad is it if we ignore this
+    //DIAGPRINTLN("Timeout while waiting for +FTPPUT:1,");
+  }
+
+  return true;
+}
+
+/*
+ * \brief Lower layer function to insert a number of bytes in the FTP session
+ *
+ * The function sendBuffer() is the one to use. It takes care of splitting up
+ * in chunks not bigger than maxlength
+ */
+bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
+{
+  char cmd[64];
+  uint32_t ts_max;
+  uint8_t *ptr = buffer;
+
+  // Send some data
+  //snprintf(cmd, sizeof(cmd), "AT+FTPPUT=2,%d", size);
+  strcpy(cmd, "AT+FTPPUT=2,");
+  itoa(size, cmd + strlen(cmd), 10);
+  Serial1.print(cmd);
+  Serial1.print('\r');
+  delay(500);           // TODO Find out if we can drop this
+
+  ts_max = millis() + 4000;
+  // +FTPPUT:2,22
+  if (!waitForMessage("+FTPPUT:2,", ts_max)) {
+    // How bad is it if we ignore this
+  }
+
+  // Send data ...
+  for (size_t i = 0; i < size; ++i) {
+    Serial1.print((char)*ptr++);
+  }
+  //Serial1.print('\r');          // dummy <CR>, not sure if this is needed
+
+  // Expected reply:
+  // +FTPPUT:2,22
+  // OK
+  // +FTPPUT:1,1,1360
+
+  if (!waitForOK()) {
+    return false;
+  }
+  ts_max = millis() + 4000;
+  // +FTPPUT:1,1,1360
+  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+    // How bad is it if we ignore this
+  }
+
+  return true;
+}
+
+bool GPRSbeeClass::sendFTPdata(uint8_t *data, size_t size)
+{
+  while (size > 0) {
+    size_t my_size = size;
+    if (my_size > _ftpMaxLength) {
+      my_size = _ftpMaxLength;
+    }
+    if (!sendFTPdata_low(data, my_size)) {
+      return false;
+    }
+    data += my_size;
+    size -= my_size;
+  }
+  return true;
+}

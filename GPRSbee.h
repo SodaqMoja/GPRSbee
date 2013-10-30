@@ -39,6 +39,12 @@ public:
   bool sendDataTCP(uint8_t *data, int data_len);
   bool receiveLineTCP(char **buffer, uint16_t timeout=2000);
 
+  bool openFTP(const char *apn, const char *server, const char *username, const char *password);
+  bool closeFTP();
+  bool openFTPfile(const char *fname, const char *path);
+  bool sendFTPdata(uint8_t *data, size_t size);
+  bool closeFTPfile();
+
 private:
   bool isOn();
   void toggle();
@@ -57,6 +63,8 @@ private:
   // Small utility to see if we timed out
   bool isTimedOut(uint32_t ts) { return (long)(millis() - ts) >= 0; }
 
+  bool sendFTPdata_low(uint8_t *buffer, size_t size);
+
   void diagPrint(const char *str) { if (_diagStream) _diagStream->print(str); }
   void diagPrintLn(const char *str) { if (_diagStream) _diagStream->println(str); }
   void diagPrint(char c) { if (_diagStream) _diagStream->print(c); }
@@ -69,6 +77,7 @@ private:
   int _ctsPin;
   int _powerPin;
   int _minSignalQuality;
+  size_t _ftpMaxLength;
 };
 
 extern GPRSbeeClass gprsbee;
