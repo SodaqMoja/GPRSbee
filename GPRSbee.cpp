@@ -116,7 +116,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
 
   _SIM900_bufcnt = 0;
   while (!isTimedOut(ts_max)) {
-    int c = Serial1.read();
+    int c = _myStream->read();
     if (c < 0) {
       if (seenCR && isTimedOut(ts_waitLF)) {
         // Line ended with just <CR>. That's OK too.
@@ -198,7 +198,7 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
       break;
     }
 
-    int c = Serial1.read();
+    int c = _myStream->read();
     if (c < 0) {
       continue;
     }
@@ -457,8 +457,8 @@ bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
 
   delay(500);
   flushInput();
-  Serial1.print("AT+CIPSEND=");
-  Serial1.println(data_len);
+  _myStream->print("AT+CIPSEND=");
+  _myStream->println(data_len);
   ts_max = millis() + 4000;             // Is this enough?
   if (!waitForPrompt("> ", ts_max)) {
     goto error;
@@ -466,7 +466,7 @@ bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
   delay(500);           // Wait a little, just to be sure
   // Send the data
   for (int i = 0; i < data_len; ++i) {
-    Serial1.print((char)*data++);
+    _myStream->print((char)*data++);
   }
   //
   ts_max = millis() + 4000;             // Is this enough?
@@ -699,8 +699,8 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   //snprintf(cmd, sizeof(cmd), "AT+FTPPUT=2,%d", size);
   strcpy(cmd, "AT+FTPPUT=2,");
   itoa(size, cmd + strlen(cmd), 10);
-  Serial1.print(cmd);
-  Serial1.print('\r');
+  _myStream->print(cmd);
+  _myStream->print('\r');
   delay(500);           // TODO Find out if we can drop this
 
   ts_max = millis() + 4000;
@@ -711,9 +711,9 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
 
   // Send data ...
   for (size_t i = 0; i < size; ++i) {
-    Serial1.print((char)*ptr++);
+    _myStream->print((char)*ptr++);
   }
-  //Serial1.print('\r');          // dummy <CR>, not sure if this is needed
+  //_myStream->print('\r');          // dummy <CR>, not sure if this is needed
 
   // Expected reply:
   // +FTPPUT:2,22
