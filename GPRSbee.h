@@ -67,6 +67,8 @@ private:
 
   void diagPrint(const char *str) { if (_diagStream) _diagStream->print(str); }
   void diagPrintLn(const char *str) { if (_diagStream) _diagStream->println(str); }
+  void diagPrint(const __FlashStringHelper *str) { if (_diagStream) _diagStream->print(str); }
+  void diagPrintLn(const __FlashStringHelper *str) { if (_diagStream) _diagStream->println(str); }
   void diagPrint(char c) { if (_diagStream) _diagStream->print(c); }
 
 #define SIM900_BUFLEN 64

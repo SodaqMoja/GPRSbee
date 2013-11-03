@@ -141,12 +141,12 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
     }
   }
 
-  diagPrintLn("readLine timed out");
+  diagPrintLn(F("readLine timed out"));
   return -1;            // This indicates: timed out
 
 ok:
   _SIM900_buffer[_SIM900_bufcnt] = 0;     // Terminate with NUL byte
-  //diagPrint(" "); diagPrintLn(_SIM900_buffer);
+  //diagPrint(F(" ")); diagPrintLn(_SIM900_buffer);
   return _SIM900_bufcnt;
 
 }
@@ -171,7 +171,7 @@ bool GPRSbeeClass::waitForOK(uint16_t timeout)
 bool GPRSbeeClass::waitForMessage(const char *msg, uint32_t ts_max)
 {
   int len;
-  diagPrint("waitForMessage: "); diagPrintLn(msg);
+  diagPrint(F("waitForMessage: ")); diagPrintLn(msg);
   while ((len = readLine(ts_max)) >= 0) {
     if (len == 0) {
       // Skip empty lines
@@ -232,7 +232,7 @@ void GPRSbeeClass::sendCommand(const char *cmd)
 {
   delay(500);
   flushInput();
-  diagPrint(">> "); diagPrintLn(cmd);
+  diagPrint(F(">> ")); diagPrintLn(cmd);
   _myStream->print(cmd);
   _myStream->print('\r');
 }
@@ -427,7 +427,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port)
   goto ending;
 
 cmd_error:
-  diagPrintLn("openTCP failed!");
+  diagPrintLn(F("openTCP failed!"));
   off();
 
 ending:
@@ -441,7 +441,7 @@ void GPRSbeeClass::closeTCP()
   sendCommand("AT+CIPSHUT");
   ts_max = millis() + 4000;             // Is this enough?
   if (!waitForMessage("SHUT OK", ts_max)) {
-    diagPrintLn("closeTCP failed!");
+    diagPrintLn(F("closeTCP failed!"));
   }
 
   off();
@@ -477,7 +477,7 @@ bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
   retval = true;
   goto ending;
 error:
-  diagPrintLn("sendDataTCP failed!");
+  diagPrintLn(F("sendDataTCP failed!"));
 ending:
   return retval;
 }
@@ -487,7 +487,7 @@ bool GPRSbeeClass::receiveLineTCP(char **buffer, uint16_t timeout)
   uint32_t ts_max;
   bool retval = false;
 
-  //diagPrintLn("receiveLineTCP");
+  //diagPrintLn(F("receiveLineTCP"));
   *buffer = NULL;
   ts_max = millis() + timeout;
   if (readLine(ts_max) < 0) {
@@ -677,7 +677,7 @@ bool GPRSbeeClass::closeFTPfile()
   uint32_t ts_max = millis() + 10000;
   if (!waitForMessage("+FTPPUT:1,", ts_max)) {
     // How bad is it if we ignore this
-    //DIAGPRINTLN("Timeout while waiting for +FTPPUT:1,");
+    //DIAGPRINTLN(F("Timeout while waiting for +FTPPUT:1,"));
   }
 
   return true;
