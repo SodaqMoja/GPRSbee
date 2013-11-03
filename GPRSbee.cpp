@@ -122,7 +122,6 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
         // Line ended with just <CR>. That's OK too.
         goto ok;
       }
-      delay(50);
       continue;
     }
     if (c != '\r') {
@@ -230,7 +229,6 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
 
 void GPRSbeeClass::sendCommand(const char *cmd)
 {
-  delay(500);
   flushInput();
   diagPrint(F(">> ")); diagPrintLn(cmd);
   _myStream->print(cmd);
