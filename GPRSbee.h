@@ -31,6 +31,7 @@ public:
   bool on();
   bool off();
   void setDiag(Stream &stream) { _diagStream = &stream; }
+  void setDiag(Stream *stream) { _diagStream = stream; }
 
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
