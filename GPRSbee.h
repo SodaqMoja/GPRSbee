@@ -46,6 +46,8 @@ public:
   bool sendFTPdata(uint8_t *data, size_t size);
   bool closeFTPfile();
 
+  bool sendSMS(const char *telno, const char *text);
+
 private:
   bool isOn();
   void toggle();

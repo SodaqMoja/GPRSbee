@@ -114,6 +114,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
   uint32_t ts_waitLF = 0;
   bool seenCR = false;
 
+  //diagPrintLn(F("readLine"));
   _SIM900_bufcnt = 0;
   while (!isTimedOut(ts_max)) {
     int c = _myStream->read();
@@ -675,7 +676,7 @@ bool GPRSbeeClass::closeFTPfile()
   uint32_t ts_max = millis() + 10000;
   if (!waitForMessage("+FTPPUT:1,", ts_max)) {
     // How bad is it if we ignore this
-    //DIAGPRINTLN(F("Timeout while waiting for +FTPPUT:1,"));
+    //diagPrintLn(F("Timeout while waiting for +FTPPUT:1,"));
   }
 
   return true;
@@ -744,4 +745,52 @@ bool GPRSbeeClass::sendFTPdata(uint8_t *data, size_t size)
     size -= my_size;
   }
   return true;
+}
+
+bool GPRSbeeClass::sendSMS(const char *telno, const char *text)
+{
+  char cmd[64];
+  uint32_t ts_max;
+  bool retval = false;
+
+  if (!on()) {
+    goto ending;
+  }
+
+  // Suppress echoing
+  if (!sendCommandWaitForOK("ATE0")) {
+    goto cmd_error;
+  }
+
+  // Wait for signal quality
+  if (!waitForSignalQuality()) {
+    goto cmd_error;
+  }
+  if (!sendCommandWaitForOK("AT+CMGF=1")) {
+    goto cmd_error;
+  }
+
+  strcpy(cmd, "AT+CMGS=\"");
+  strcat(cmd, telno);
+  strcat(cmd, "\"");
+  sendCommand(cmd);
+  ts_max = millis() + 4000;
+  if (!waitForPrompt("> ", ts_max)) {
+    goto cmd_error;
+  }
+  _myStream->print(text); //the message itself
+  _myStream->print((char)26); //the ASCII code of ctrl+z is 26, this is needed to end the send modus and send the message.
+  if (!waitForOK(20000)) {
+    goto cmd_error;
+  }
+
+  retval = true;
+  goto ending;
+
+cmd_error:
+  diagPrintLn(F("sendSMS failed!"));
+
+ending:
+  off();
+  return retval;
 }
