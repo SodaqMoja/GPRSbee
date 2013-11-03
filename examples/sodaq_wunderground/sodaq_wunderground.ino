@@ -66,8 +66,7 @@ Current settings:
 #include <Adafruit_BMP085.h>
 #include <SHT2x.h>
 #include <Sodaq_DS3231.h>
-#include <SoftwareSerial.h>
-#include <dataflash.h>
+#include <Sodaq_dataflash.h>
 #include <Wire.h>
 #include <GPRSbee.h>
 
@@ -106,12 +105,28 @@ struct eeprom_config_t
 #define ENABLE_DIAG     1
 
 #ifdef ENABLE_DIAG
+#if 1
+// Select Software Serial for the diagnostic output
+#include <SoftwareSerial.h>
 SoftwareSerial diagport(DIAGPORT_RX, DIAGPORT_TX);
+#else
+// Select Serial1 for the diagnostic output
+#define diagport Serial1
+#endif
 #define DIAGPRINT(...)          diagport.print(__VA_ARGS__)
 #define DIAGPRINTLN(...)        diagport.println(__VA_ARGS__)
 #else
 #define DIAGPRINT(...)
 #define DIAGPRINTLN(...)
+#endif
+
+
+//#########   GPRSbee Serial    #############
+// Which serial port is connected to the GPRSbee?
+#if 1
+#define gprsport        Serial
+#else
+#define gprsport        Serial1
 #endif
 
 
@@ -130,8 +145,8 @@ void getNowUrlEscaped(char *buffer);
 //#########    setup        #############
 void setup()
 {
-  Serial1.begin(9600);      // Serial1 is connected to SIM900 GPRSbee
-  gprsbee.init(Serial1, XBEECTS_PIN, GPRSBEE_PWRPIN);
+  gprsport.begin(19200);
+  gprsbee.init(gprsport, XBEECTS_PIN, GPRSBEE_PWRPIN);
 #ifdef ENABLE_DIAG
   diagport.begin(9600);
   gprsbee.setDiag(diagport);
