@@ -125,9 +125,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
       }
       continue;
     }
-    if (c != '\r') {
-      diagPrint((char)c);
-    }
+    diagPrint((char)c);                 // echo the char
     if (c == '\r') {
       seenCR = true;
       ts_waitLF = millis() + 500;       // Wait another .5 sec for an optional LF
@@ -203,9 +201,7 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
       continue;
     }
 
-    if (c != '\r') {
-      diagPrint((char)c);
-    }
+    diagPrint((char)c);
     switch (c) {
     case '\r':
       // Ignore
