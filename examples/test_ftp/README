@@ -1,0 +1,15 @@
+This example demonstrates a FTP file upload using the GPRSbee.
+
+Before you can run this example you must fill in the FTP server
+parameters. Hostname, username and password, and the directory
+path on the FTP server. Futhermore you need to fill in the APN
+of your mobile service.
+
+The example is not optimized at all. It only shows the basic steps
+to upload a file.
+
+Please be aware that the SODAQ Moja board uses the RX/TX of the
+Atmel MCU which is also used by the USB connection to upload
+your program to the MCU. The GPRSbee does not work if the USB
+port remains connected. So, upload the program and then disconnect
+the USB.
