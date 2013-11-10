@@ -35,6 +35,8 @@ public:
 
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
+  bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
+
   bool openTCP(const char *apn, const char *server, int port);
   void closeTCP();
   bool sendDataTCP(uint8_t *data, int data_len);
@@ -54,6 +56,7 @@ private:
   bool isAlive();
   void flushInput();
   int readLine(uint32_t ts_max);
+  int readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t ts_max);
   bool waitForOK(uint16_t timeout=2000);
   bool waitForMessage(const char *msg, uint32_t ts_max);
   bool waitForPrompt(const char *prompt, uint32_t ts_max);

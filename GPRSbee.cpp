@@ -149,6 +149,38 @@ ok:
 
 }
 
+/*
+ * \brief Read a number of bytes from SIM900
+ *
+ * Read <len> bytes from SIM900 and store at most <buflen> in the buffer.
+ *
+ * Return 0 if <len> bytes were read from SIM900, else return the remaining number
+ * that wasn't read due to the timeout.
+ * Note. The buffer is a byte buffer and not a string, and it is not terminated
+ * with a NUL byte.
+ */
+int GPRSbeeClass::readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t ts_max)
+{
+  //diagPrintLn(F("readBytes"));
+  while (!isTimedOut(ts_max) && len > 0) {
+    int c = _myStream->read();
+    if (c < 0) {
+      continue;
+    }
+    // Each character is stored in the buffer
+    --len;
+    if (buflen > 0) {
+      *buffer++ = c;
+      --buflen;
+    }
+  }
+  if (buflen > 0) {
+    // This is just a convenience if the data is an ASCII string (which we don't know here).
+    *buffer = 0;
+  }
+  return len;
+}
+
 bool GPRSbeeClass::waitForOK(uint16_t timeout)
 {
   int len;
@@ -169,7 +201,7 @@ bool GPRSbeeClass::waitForOK(uint16_t timeout)
 bool GPRSbeeClass::waitForMessage(const char *msg, uint32_t ts_max)
 {
   int len;
-  diagPrint(F("waitForMessage: ")); diagPrintLn(msg);
+  //diagPrint(F("waitForMessage: ")); diagPrintLn(msg);
   while ((len = readLine(ts_max)) >= 0) {
     if (len == 0) {
       // Skip empty lines
@@ -362,8 +394,8 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port)
 
   // Wait for CREG
   if (!waitForCREG()) {
-      goto cmd_error;
-    }
+    goto cmd_error;
+  }
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
@@ -519,8 +551,8 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *user
 
   // Wait for CREG
   if (!waitForCREG()) {
-      goto ending;
-    }
+    goto ending;
+  }
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
@@ -528,10 +560,12 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *user
     goto ending;
   }
 
+  // SAPBR=3 Set bearer parameters
   if (!sendCommandWaitForOK("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"")) {
     goto ending;
   }
 
+  // SAPBR=3 Set bearer parameters
   //snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", apn);
   strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
   strcat(cmd, apn);
@@ -785,6 +819,156 @@ bool GPRSbeeClass::sendSMS(const char *telno, const char *text)
 
 cmd_error:
   diagPrintLn(F("sendSMS failed!"));
+
+ending:
+  off();
+  return retval;
+}
+
+bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, size_t len)
+{
+  char cmd[128];
+  int retry;
+  uint32_t ts_max;
+  size_t getLength = 0;
+  int i;
+  bool retval = false;
+
+  if (!on()) {
+    goto ending;
+  }
+
+  // Suppress echoing
+  if (!sendCommandWaitForOK("ATE0")) {
+    goto cmd_error;
+  }
+
+  // Wait for signal quality
+  if (!waitForSignalQuality()) {
+    goto cmd_error;
+  }
+
+  // Wait for CREG
+  if (!waitForCREG()) {
+    goto cmd_error;
+  }
+
+  // Attach to GPRS service
+  // We need a longer timeout than the normal waitForOK
+  if (!sendCommandWaitForOK("AT+CGATT=1", 6000)) {
+    goto cmd_error;
+  }
+
+  // SAPBR=3 Set bearer parameters
+  if (!sendCommandWaitForOK("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"")) {
+    goto cmd_error;
+  }
+
+  // SAPBR=3 Set bearer parameters
+  //snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", apn);
+  strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
+  strcat(cmd, apn);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto cmd_error;
+  }
+
+  // SAPBR=1 Open bearer
+  // This command can fail if signal quality is low, or if we're too fast
+  for (retry = 0; retry < 5; retry++) {
+    if (sendCommandWaitForOK("AT+SAPBR=1,1")) {
+      break;
+    }
+  }
+  if (retry >= 5) {
+    goto cmd_error;
+  }
+
+  // SAPBR=2 Query bearer
+  // Expect +SAPBR: <cid>,<Status>,<IP_Addr>
+  if (!sendCommandWaitForOK("AT+SAPBR=2,1")) {
+    goto cmd_error;
+  }
+
+  // initialize http service
+  if (!sendCommandWaitForOK("AT+HTTPINIT")) {
+    goto cmd_error;
+  }
+
+  // set http param CID value
+  // FIXME Do we need this?
+
+  // set http param URL value
+  strcpy(cmd, "AT+HTTPPARA=\"URL\",\"");
+  if (strlen(cmd) + strlen(url) + 2 > sizeof(cmd)) {
+    // Buffer overflow
+    goto cmd_error;
+  }
+  strcat(cmd, url);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto cmd_error;
+  }
+
+  // set http action type 0 = GET, 1 = POST, 2 = HEAD
+  if (!sendCommandWaitForOK("AT+HTTPACTION=0")) {
+    goto cmd_error;
+  }
+  // Now we're expecting something like this: +HTTPACTION: <Method>,<StatusCode>,<DataLen>
+  // <Method> 0
+  // <StatusCode> 200
+  // <DataLen> ??
+  ts_max = millis() + 4000;
+  if (waitForMessage("+HTTPACTION:", ts_max)) {
+    // TODO Check for StatusCode 200
+    // TODO Check for DataLen
+  }
+
+  // Read all data
+  // Expect
+  //   +HTTPREAD:<date_len>
+  //   <data>
+  //   OK
+  sendCommand("AT+HTTPREAD");
+  ts_max = millis() + 8000;
+  if (waitForMessage("+HTTPREAD:", ts_max)) {
+    const char *ptr = _SIM900_buffer + 10;
+    char *bufend;
+    getLength = strtol(ptr, &bufend, 0);
+    if (bufend == ptr) {
+      // Invalid number
+      goto cmd_error;
+    }
+  } else {
+    // Hmm. Why didn't we get this?
+    goto cmd_error;
+  }
+  // Read the data
+  retval = true;                // assume this will succeed
+  ts_max = millis() + 4000;
+  i = readBytes(getLength, (uint8_t *)buffer, len, ts_max);
+  if (i != 0) {
+    // We didn't get the bytes that we expected
+    // Still wait for OK
+    retval = false;
+  } else {
+    // The read was successful. readBytes made sure it was terminated.
+  }
+  if (!waitForOK()) {
+    // This is an error, but we can still return success.
+    goto cmd_error;
+  }
+
+  if (!sendCommandWaitForOK("AT+HTTPTERM")) {
+    // This is an error, but we can still return success.
+    goto cmd_error;
+  }
+
+  // All is well if we get here.
+  goto ending;
+
+cmd_error:
+  diagPrintLn(F("doHTTPGET failed!"));
 
 ending:
   off();
