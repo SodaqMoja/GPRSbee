@@ -37,7 +37,7 @@ public:
 
   bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
 
-  bool openTCP(const char *apn, const char *server, int port);
+  bool openTCP(const char *apn, const char *server, int port, bool transMode=false);
   void closeTCP();
   bool sendDataTCP(uint8_t *data, int data_len);
   bool receiveLineTCP(char **buffer, uint16_t timeout=2000);
@@ -86,6 +86,7 @@ private:
   int _powerPin;
   int _minSignalQuality;
   size_t _ftpMaxLength;
+  bool _transMode;
 };
 
 extern GPRSbeeClass gprsbee;

@@ -372,7 +372,7 @@ close the TCP connection with “AT+CIPCLOSE” command. Below is an example of 
 connection to remote server.
  */
 
-bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port)
+bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port, bool transMode)
 {
   uint32_t ts_max;
   boolean retval = false;
@@ -417,7 +417,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port)
 
 #if 0
   // Get local IP address
-  if (!sendCommandWaitForOK("AT+CIFR")) {
+  if (!sendCommandWaitForOK("AT+CISFR")) {
     goto cmd_error;
   }
 #endif
@@ -429,6 +429,17 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port)
     goto cmd_error;
   }
 
+  if (transMode) {
+    if (!sendCommandWaitForOK("AT+CIPMODE=1")) {
+      goto cmd_error;
+    }
+    //AT+CIPCCFG
+    // Read the current settings
+    if (!sendCommandWaitForOK("AT+CIPCCFG?")) {
+      goto cmd_error;
+    }
+  }
+
   // Start up the connection
   // AT+CIPSTART="TCP","server",8500
   strcpy(cmdbuf, "AT+CIPSTART=\"TCP\",\"");
@@ -438,18 +449,21 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port)
   if (!sendCommandWaitForOK(cmdbuf)) {
     goto cmd_error;
   }
-  ts_max = millis() + 10000;            // Is this enough?
-  if (!waitForMessage("CONNECT OK", ts_max)) {
+  ts_max = millis() + 15000;            // Is this enough?
+  if (!waitForMessage("CONNECT", ts_max)) {
     // For some weird reason the SIM900 in some cases does not want
     // to give us this CONNECT OK. But then we see it later in the stream.
-    //goto cmd_error;
-  }
-
-  // AT+CIPQSEND=0  normal send mode (reply after each data send will be SEND OK)
-  if (!sendCommandWaitForOK("AT+CIPQSEND=0")) {
+    // The manual (V1.03) says that we can expect "CONNECT OK", but so far
+    // we have only seen just "CONNECT" (or an error of course).
     goto cmd_error;
   }
 
+  // AT+CIPQSEND=0  normal send mode (reply after each data send will be SEND OK)
+  if (false && !sendCommandWaitForOK("AT+CIPQSEND=0")) {
+    goto cmd_error;
+  }
+
+  _transMode = transMode;
   retval = true;
   goto ending;
 
@@ -465,6 +479,13 @@ void GPRSbeeClass::closeTCP()
 {
   uint32_t ts_max;
   // AT+CIPSHUT
+  // Maybe we should do AT+CIPCLOSE=1
+  if (_transMode) {
+    delay(1000);
+    _myStream->print(F("+++"));
+    delay(500);
+    // TODO Will the SIM900 answer with "OK"?
+  }
   sendCommand("AT+CIPSHUT");
   ts_max = millis() + 4000;             // Is this enough?
   if (!waitForMessage("SHUT OK", ts_max)) {
