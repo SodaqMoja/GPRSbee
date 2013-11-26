@@ -214,6 +214,27 @@ bool GPRSbeeClass::waitForMessage(const char *msg, uint32_t ts_max)
   return false;         // This indicates: timed out
 }
 
+int GPRSbeeClass::waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max)
+{
+  int len;
+  //diagPrint(F("waitForMessages: ")); diagPrintLn(msgs[0]);
+  while ((len = readLine(ts_max)) >= 0) {
+    if (len == 0) {
+      // Skip empty lines
+      continue;
+    }
+    //diagPrint(F(" checking \"")); diagPrint(_SIM900_buffer); diagPrintLn("\"");
+    for (size_t i = 0; i < nrMsgs; ++i) {
+      //diagPrint(F("  checking \"")); diagPrint(msgs[i]); diagPrintLn("\"");
+      if (strcmp(_SIM900_buffer, msgs[i]) == 0) {
+        //diagPrint(F("  found i=")); diagPrint((int)i); diagPrintLn("");
+        return i;
+      }
+    }
+  }
+  return -1;         // This indicates: timed out
+}
+
 /*
  * \brief Wait for a prompt, or timeout
  *
@@ -377,6 +398,13 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port, bool t
   uint32_t ts_max;
   boolean retval = false;
   char cmdbuf[60];              // big enough for AT+CIPSTART="TCP","server",8500
+  const char *CIPSTART_replies[] = {
+		  "CONNECT FAIL",
+		  //"STATE: TCP CLOSED",
+		  "CONNECT",
+  };
+  const size_t nrReplies = sizeof(CIPSTART_replies) / sizeof(CIPSTART_replies[0]);
+  const int connect_ix = 1;     // This *must* match the index of "CONNECT" above !!!
 
   if (!on()) {
     goto ending;
@@ -450,11 +478,16 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port, bool t
     goto cmd_error;
   }
   ts_max = millis() + 15000;            // Is this enough?
-  if (!waitForMessage("CONNECT", ts_max)) {
+  int ix;
+  if ((ix = waitForMessages(CIPSTART_replies, nrReplies, ts_max)) < 0) {
     // For some weird reason the SIM900 in some cases does not want
     // to give us this CONNECT OK. But then we see it later in the stream.
     // The manual (V1.03) says that we can expect "CONNECT OK", but so far
     // we have only seen just "CONNECT" (or an error of course).
+    goto cmd_error;
+  }
+  if (ix != connect_ix) {
+    // Only CIPSTART_replies[0] is acceptable, i.e. "CONNECT"
     goto cmd_error;
   }
 

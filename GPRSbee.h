@@ -59,6 +59,7 @@ private:
   int readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t ts_max);
   bool waitForOK(uint16_t timeout=2000);
   bool waitForMessage(const char *msg, uint32_t ts_max);
+  int waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max);
   bool waitForPrompt(const char *prompt, uint32_t ts_max);
   void sendCommand(const char *cmd);
   bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=2000);
@@ -75,7 +76,10 @@ private:
   void diagPrintLn(const char *str) { if (_diagStream) _diagStream->println(str); }
   void diagPrint(const __FlashStringHelper *str) { if (_diagStream) _diagStream->print(str); }
   void diagPrintLn(const __FlashStringHelper *str) { if (_diagStream) _diagStream->println(str); }
+  void diagPrint(int i) { if (_diagStream) _diagStream->print(i); }
+  void diagPrintLn(int i) { if (_diagStream) _diagStream->println(i); }
   void diagPrint(char c) { if (_diagStream) _diagStream->print(c); }
+  void diagPrintLn(char c) { if (_diagStream) _diagStream->println(c); }
 
 #define SIM900_BUFLEN 64
   char _SIM900_buffer[SIM900_BUFLEN + 1];           // +1 for the 0 byte
