@@ -528,6 +528,63 @@ void GPRSbeeClass::closeTCP()
   off();
 }
 
+bool GPRSbeeClass::isTCPConnected()
+{
+  uint32_t ts_max;
+  bool retval = false;
+  char *ptr;
+
+  if (!isOn()) {
+    goto end;
+  }
+
+  if (_transMode) {
+    // We need to send +++
+    delay(1000);
+    _myStream->print("+++");
+    delay(500);
+    if (!waitForOK()) {
+      goto end;
+    }
+  }
+
+  // AT+CIPSTATUS
+  // Expected answer:
+  // OK
+  // STATE: <state>
+  // The only good answer is "CONNECT OK"
+  if (!sendCommandWaitForOK("AT+CIPSTATUS")) {
+    goto end;
+  }
+  ts_max = millis() + 4000;             // Is this enough?
+  if (!waitForMessage("STATE:", ts_max)) {
+    goto end;
+  }
+  ptr = _SIM900_buffer + 6;
+  while (*ptr != '\0' && *ptr == ' ') {
+    ++ptr;
+  }
+  // Look at the state
+  if (strcmp(ptr, "CONNECT OK") != 0) {
+    goto end;
+  }
+
+  if (_transMode) {
+    // We must switch back to transparent mode
+    sendCommand("ATO0");
+    // TODO wait for "CONNECT" or "NO CARRIER"
+    ts_max = millis() + 4000;             // Is this enough? Or too much
+    if (!waitForMessage("CONNECT", ts_max)) {
+      goto end;
+    }
+  }
+
+  retval = true;
+
+end:
+  return retval;
+}
+
 /*
  * \brief Send some data over the TCP connection
  */
