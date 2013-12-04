@@ -36,14 +36,21 @@ public:
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
   bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
+  bool doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd,
+      const char *url, char *buffer, size_t len);
 
   bool openTCP(const char *apn, const char *server, int port, bool transMode=false);
+  bool openTCP(const char *apn, const char *apnuser, const char *apnpwd,
+      const char *server, int port, bool transMode=false);
   void closeTCP();
   bool isTCPConnected();
   bool sendDataTCP(uint8_t *data, int data_len);
   bool receiveLineTCP(char **buffer, uint16_t timeout=2000);
 
-  bool openFTP(const char *apn, const char *server, const char *username, const char *password);
+  bool openFTP(const char *apn, const char *server,
+      const char *username, const char *password);
+  bool openFTP(const char *apn, const char *apnuser, const char *apnpwd,
+      const char *server, const char *username, const char *password);
   bool closeFTP();
   bool openFTPfile(const char *fname, const char *path);
   bool sendFTPdata(uint8_t *data, size_t size);
@@ -67,7 +74,7 @@ private:
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
   bool waitForSignalQuality();
   bool waitForCREG();
-  bool setBearerParms(const char *apn);
+  bool setBearerParms(const char *apn, const char *user, const char *pwd);
 
   // Small utility to see if we timed out
   bool isTimedOut(uint32_t ts) { return (long)(millis() - ts) >= 0; }

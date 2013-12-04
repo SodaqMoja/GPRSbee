@@ -393,7 +393,15 @@ close the TCP connection with “AT+CIPCLOSE” command. Below is an example of 
 connection to remote server.
  */
 
-bool GPRSbeeClass::openTCP(const char *apn, const char *server, int port, bool transMode)
+
+bool GPRSbeeClass::openTCP(const char *apn,
+    const char *server, int port, bool transMode)
+{
+  return openTCP(apn, 0, 0, server, port, transMode);
+}
+
+bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apnpwd,
+    const char *server, int port, bool transMode)
 {
   uint32_t ts_max;
   boolean retval = false;
@@ -641,7 +649,14 @@ ending:
 /*
  * \brief Open a (FTP) session
  */
-bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *username, const char *password)
+bool GPRSbeeClass::openFTP(const char *apn,
+    const char *server, const char *username, const char *password)
+{
+  return openFTP(apn, 0, 0, server, username, password);
+}
+
+bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apnpwd,
+    const char *server, const char *username, const char *password)
 {
   char cmd[64];
 
@@ -670,7 +685,7 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *user
     goto cmd_error;
   }
 
-  if (!setBearerParms(apn)) {
+  if (!setBearerParms(apn, apnuser, apnpwd)) {
     goto cmd_error;
   }
 
@@ -917,6 +932,11 @@ ending:
 
 bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, size_t len)
 {
+  return doHTTPGET(apn, 0, 0, url, buffer, len);
+}
+
+bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd, const char *url, char *buffer, size_t len)
+{
   char cmd[128];
   uint32_t ts_max;
   size_t getLength = 0;
@@ -948,7 +968,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, siz
     goto cmd_error;
   }
 
-  if (!setBearerParms(apn)) {
+  if (!setBearerParms(apn, apnuser, apnpwd)) {
     goto cmd_error;
   }
 
@@ -1037,7 +1057,7 @@ ending:
   return retval;
 }
 
-bool GPRSbeeClass::setBearerParms(const char *apn)
+bool GPRSbeeClass::setBearerParms(const char *apn, const char *user, const char *pwd)
 {
   char cmd[64];
   bool retval = false;
@@ -1049,12 +1069,27 @@ bool GPRSbeeClass::setBearerParms(const char *apn)
   }
 
   // SAPBR=3 Set bearer parameters
-  //snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", apn);
   strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
   strcat(cmd, apn);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
     goto ending;
+  }
+  if (user && user[0]) {
+    strcpy(cmd, "AT+SAPBR=3,1,\"USER\",\"");
+    strcat(cmd, user);
+    strcat(cmd, "\"");
+    if (!sendCommandWaitForOK(cmd)) {
+      goto ending;
+    }
+  }
+  if (pwd && pwd[0]) {
+    strcpy(cmd, "AT+SAPBR=3,1,\"PWD\",\"");
+    strcat(cmd, pwd);
+    strcat(cmd, "\"");
+    if (!sendCommandWaitForOK(cmd)) {
+      goto ending;
+    }
   }
 
   // SAPBR=1 Open bearer
