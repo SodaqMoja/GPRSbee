@@ -639,12 +639,11 @@ ending:
 }
 
 /*
- * \brief Open a (FTP) session (one file)
+ * \brief Open a (FTP) session
  */
 bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *username, const char *password)
 {
   char cmd[64];
-  int retry;
 
   if (!on()) {
     goto ending;
@@ -652,55 +651,31 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *user
 
   // Suppress echoing
   if (!sendCommandWaitForOK("ATE0")) {
-    goto ending;
+    goto cmd_error;
   }
 
   // Wait for signal quality
   if (!waitForSignalQuality()) {
-    goto ending;
+    goto cmd_error;
   }
 
   // Wait for CREG
   if (!waitForCREG()) {
-    goto ending;
+    goto cmd_error;
   }
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
   if (!sendCommandWaitForOK("AT+CGATT=1", 6000)) {
-    goto ending;
+    goto cmd_error;
   }
 
-  // SAPBR=3 Set bearer parameters
-  if (!sendCommandWaitForOK("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"")) {
-    goto ending;
-  }
-
-  // SAPBR=3 Set bearer parameters
-  //snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", apn);
-  strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
-  strcat(cmd, apn);
-  strcat(cmd, "\"");
-  if (!sendCommandWaitForOK(cmd)) {
-    goto ending;
-  }
-
-  // This command can fail if signal quality is low, or if we're too fast
-  for (retry = 0; retry < 5; retry++) {
-    if (sendCommandWaitForOK("AT+SAPBR=1,1")) {
-      break;
-    }
-  }
-  if (retry >= 5) {
-    goto ending;
-  }
-
-  if (!sendCommandWaitForOK("AT+SAPBR=2,1")) {
-    goto ending;
+  if (!setBearerParms(apn)) {
+    goto cmd_error;
   }
 
   if (!sendCommandWaitForOK("AT+FTPCID=1")) {
-    goto ending;
+    goto cmd_error;
   }
 
   // connect to FTP server
@@ -709,7 +684,7 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *user
   strcat(cmd, server);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
-    goto ending;
+    goto cmd_error;
   }
 
   // optional "AT+FTPPORT=21";
@@ -718,17 +693,21 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *server, const char *user
   strcat(cmd, username);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
-    goto ending;
+    goto cmd_error;
   }
   //snprintf(cmd, sizeof(cmd), "AT+FTPPW=\"%s\"", password);
   strcpy(cmd, "AT+FTPPW=\"");
   strcat(cmd, password);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
-    goto ending;
+    goto cmd_error;
   }
 
   return true;
+
+cmd_error:
+  diagPrintLn(F("openFTP failed!"));
+  off();
 
 ending:
   return false;
@@ -939,7 +918,6 @@ ending:
 bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, size_t len)
 {
   char cmd[128];
-  int retry;
   uint32_t ts_max;
   size_t getLength = 0;
   int i;
@@ -970,34 +948,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, siz
     goto cmd_error;
   }
 
-  // SAPBR=3 Set bearer parameters
-  if (!sendCommandWaitForOK("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"")) {
-    goto cmd_error;
-  }
-
-  // SAPBR=3 Set bearer parameters
-  //snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", apn);
-  strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
-  strcat(cmd, apn);
-  strcat(cmd, "\"");
-  if (!sendCommandWaitForOK(cmd)) {
-    goto cmd_error;
-  }
-
-  // SAPBR=1 Open bearer
-  // This command can fail if signal quality is low, or if we're too fast
-  for (retry = 0; retry < 5; retry++) {
-    if (sendCommandWaitForOK("AT+SAPBR=1,1")) {
-      break;
-    }
-  }
-  if (retry >= 5) {
-    goto cmd_error;
-  }
-
-  // SAPBR=2 Query bearer
-  // Expect +SAPBR: <cid>,<Status>,<IP_Addr>
-  if (!sendCommandWaitForOK("AT+SAPBR=2,1")) {
+  if (!setBearerParms(apn)) {
     goto cmd_error;
   }
 
@@ -1083,5 +1034,48 @@ cmd_error:
 
 ending:
   off();
+  return retval;
+}
+
+bool GPRSbeeClass::setBearerParms(const char *apn)
+{
+  char cmd[64];
+  bool retval = false;
+  int retry;
+
+  // SAPBR=3 Set bearer parameters
+  if (!sendCommandWaitForOK("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"")) {
+    goto ending;
+  }
+
+  // SAPBR=3 Set bearer parameters
+  //snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", apn);
+  strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
+  strcat(cmd, apn);
+  strcat(cmd, "\"");
+  if (!sendCommandWaitForOK(cmd)) {
+    goto ending;
+  }
+
+  // SAPBR=1 Open bearer
+  // This command can fail if signal quality is low, or if we're too fast
+  for (retry = 0; retry < 5; retry++) {
+    if (sendCommandWaitForOK("AT+SAPBR=1,1")) {
+      break;
+    }
+  }
+  if (retry >= 5) {
+    goto ending;
+  }
+
+  // SAPBR=2 Query bearer
+  // Expect +SAPBR: <cid>,<Status>,<IP_Addr>
+  if (!sendCommandWaitForOK("AT+SAPBR=2,1")) {
+    goto ending;
+  }
+
+  retval = true;
+
+ending:
   return retval;
 }

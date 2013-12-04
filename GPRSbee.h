@@ -67,6 +67,7 @@ private:
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
   bool waitForSignalQuality();
   bool waitForCREG();
+  bool setBearerParms(const char *apn);
 
   // Small utility to see if we timed out
   bool isTimedOut(uint32_t ts) { return (long)(millis() - ts) >= 0; }
