@@ -34,6 +34,9 @@ void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin)
   _ctsPin = ctsPin;
   _powerPin = powerPin;
   _minSignalQuality = 10;
+  _ftpMaxLength = 0;
+  _transMode = false;
+  _echoOff = false;
 }
 
 bool GPRSbeeClass::on()
@@ -63,6 +66,7 @@ bool GPRSbeeClass::off()
       // Should we care if it didn't?
     }
   }
+  _echoOff = false;
   return !isOn();
 }
 
@@ -96,6 +100,17 @@ bool GPRSbeeClass::isAlive()
     }
   }
   return false;
+}
+
+void GPRSbeeClass::switchEchoOff()
+{
+  if (!_echoOff) {
+    // Suppress echoing
+    if (!sendCommandWaitForOK("ATE0")) {
+      return;
+    }
+    _echoOff = true;
+  }
 }
 
 void GPRSbeeClass::flushInput()
@@ -331,6 +346,64 @@ bool GPRSbeeClass::getIntValue(const char *cmd, const char *reply, int * value, 
   return false;
 }
 
+/*
+ * \brief Get SIM900 string value
+ *
+ * Send the SIM900 command and wait for the reply (prefixed with <reply>.
+ * Finally the SIM900 should give "OK"
+ *
+ * An example is:
+ *   >> AT+GCAP
+ *   << +GCAP:+FCLASS,+CGSM
+ *   <<
+ *   << OK
+ */
+bool GPRSbeeClass::getStrValue(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max)
+{
+  sendCommand(cmd);
+
+  if (waitForMessage(reply, ts_max)) {
+    const char *ptr = _SIM900_buffer + strlen(reply);
+    strncpy(str, ptr, size - 1);
+    // Wait for "OK"
+    return waitForOK();
+  }
+  return false;
+}
+
+/*
+ * \brief Get SIM900 string value
+ *
+ * Send the SIM900 command and wait for the reply.
+ * Finally the SIM900 should give "OK"
+ *
+ * An example is:
+ *   >> AT+GSN
+ *   << 861785005921311
+ *   <<
+ *   << OK
+ */
+bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_t ts_max)
+{
+  sendCommand(cmd);
+
+  int len;
+  while ((len = readLine(ts_max)) >= 0) {
+    if (len == 0) {
+      // Skip empty lines
+      continue;
+    }
+    strncpy(str, _SIM900_buffer, size - 1);
+    break;
+  }
+  if (len < 0) {
+      // There was a timeout
+      return false;
+  }
+  // Wait for "OK"
+  return waitForOK();
+}
+
 bool GPRSbeeClass::waitForSignalQuality()
 {
   // TODO This timeout is maybe too long.
@@ -419,9 +492,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
   }
 
   // Suppress echoing
-  if (!sendCommandWaitForOK("ATE0")) {
-    goto cmd_error;
-  }
+  switchEchoOff();
 
   // Wait for signal quality
   if (!waitForSignalQuality()) {
@@ -665,9 +736,7 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apn
   }
 
   // Suppress echoing
-  if (!sendCommandWaitForOK("ATE0")) {
-    goto cmd_error;
-  }
+  switchEchoOff();
 
   // Wait for signal quality
   if (!waitForSignalQuality()) {
@@ -893,9 +962,7 @@ bool GPRSbeeClass::sendSMS(const char *telno, const char *text)
   }
 
   // Suppress echoing
-  if (!sendCommandWaitForOK("ATE0")) {
-    goto cmd_error;
-  }
+  switchEchoOff();
 
   // Wait for signal quality
   if (!waitForSignalQuality()) {
@@ -948,9 +1015,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   }
 
   // Suppress echoing
-  if (!sendCommandWaitForOK("ATE0")) {
-    goto cmd_error;
-  }
+  switchEchoOff();
 
   // Wait for signal quality
   if (!waitForSignalQuality()) {
@@ -1113,4 +1178,18 @@ bool GPRSbeeClass::setBearerParms(const char *apn, const char *user, const char 
 
 ending:
   return retval;
+}
+
+bool GPRSbeeClass::getIMEI(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 2000;
+  return getStrValue("AT+GSN", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getGCAP(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 2000;
+  return getStrValue("AT+GCAP", "+GCAP:", buffer, buflen, ts_max);
 }

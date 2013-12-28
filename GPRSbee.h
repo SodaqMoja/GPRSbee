@@ -58,10 +58,14 @@ public:
 
   bool sendSMS(const char *telno, const char *text);
 
+  bool getIMEI(char *buffer, size_t buflen);
+  bool getGCAP(char *buffer, size_t buflen);
+
 private:
   bool isOn();
   void toggle();
   bool isAlive();
+  void switchEchoOff();
   void flushInput();
   int readLine(uint32_t ts_max);
   int readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t ts_max);
@@ -72,6 +76,8 @@ private:
   void sendCommand(const char *cmd);
   bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=2000);
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
+  bool getStrValue(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max);
+  bool getStrValue(const char *cmd, char * str, size_t size, uint32_t ts_max);
   bool waitForSignalQuality();
   bool waitForCREG();
   bool setBearerParms(const char *apn, const char *user, const char *pwd);
@@ -100,6 +106,7 @@ private:
   int _minSignalQuality;
   size_t _ftpMaxLength;
   bool _transMode;
+  bool _echoOff;
 };
 
 extern GPRSbeeClass gprsbee;
