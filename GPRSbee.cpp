@@ -902,8 +902,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   //snprintf(cmd, sizeof(cmd), "AT+FTPPUT=2,%d", size);
   strcpy(cmd, "AT+FTPPUT=2,");
   itoa(size, cmd + strlen(cmd), 10);
-  _myStream->print(cmd);
-  _myStream->print('\r');
+  sendCommand(cmd);
   delay(500);           // TODO Find out if we can drop this
 
   ts_max = millis() + 4000;
