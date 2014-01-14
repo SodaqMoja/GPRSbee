@@ -91,8 +91,12 @@ private:
   void diagPrintLn(const char *str) { if (_diagStream) _diagStream->println(str); }
   void diagPrint(const __FlashStringHelper *str) { if (_diagStream) _diagStream->print(str); }
   void diagPrintLn(const __FlashStringHelper *str) { if (_diagStream) _diagStream->println(str); }
-  void diagPrint(int i) { if (_diagStream) _diagStream->print(i); }
-  void diagPrintLn(int i) { if (_diagStream) _diagStream->println(i); }
+  void diagPrint(int i, int base=DEC) { if (_diagStream) _diagStream->print(i, base); }
+  void diagPrintLn(int i, int base=DEC) { if (_diagStream) _diagStream->println(i, base); }
+  void diagPrint(unsigned int i, int base=DEC) { if (_diagStream) _diagStream->print(i, base); }
+  void diagPrintLn(unsigned int i, int base=DEC) { if (_diagStream) _diagStream->println(i, base); }
+  void diagPrint(unsigned char i, int base=DEC) { if (_diagStream) _diagStream->print(i, base); }
+  void diagPrintLn(unsigned char i, int base=DEC) { if (_diagStream) _diagStream->println(i, base); }
   void diagPrint(char c) { if (_diagStream) _diagStream->print(c); }
   void diagPrintLn(char c) { if (_diagStream) _diagStream->println(c); }
 
