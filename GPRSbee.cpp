@@ -37,6 +37,11 @@ void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin)
   _ftpMaxLength = 0;
   _transMode = false;
   _echoOff = false;
+
+  digitalWrite(_powerPin, LOW);
+  pinMode(_powerPin, OUTPUT);
+
+  pinMode(_ctsPin, INPUT);
 }
 
 bool GPRSbeeClass::on()
