@@ -54,6 +54,7 @@ public:
   bool closeFTP();
   bool openFTPfile(const char *fname, const char *path);
   bool sendFTPdata(uint8_t *data, size_t size);
+  bool sendFTPdata(uint8_t (*read)(), size_t size);
   bool closeFTPfile();
 
   bool sendSMS(const char *telno, const char *text);
@@ -86,6 +87,7 @@ private:
   bool isTimedOut(uint32_t ts) { return (long)(millis() - ts) >= 0; }
 
   bool sendFTPdata_low(uint8_t *buffer, size_t size);
+  bool sendFTPdata_low(uint8_t (*read)(), size_t size);
 
   void diagPrint(const char *str) { if (_diagStream) _diagStream->print(str); }
   void diagPrintLn(const char *str) { if (_diagStream) _diagStream->println(str); }

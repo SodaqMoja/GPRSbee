@@ -938,9 +938,51 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
 
   return true;
 }
+bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
+{
+  char cmd[64];
+  uint32_t ts_max;
+
+  // Send some data
+  //snprintf(cmd, sizeof(cmd), "AT+FTPPUT=2,%d", size);
+  strcpy(cmd, "AT+FTPPUT=2,");
+  itoa(size, cmd + strlen(cmd), 10);
+  _myStream->print(cmd);
+  _myStream->print('\r');
+  delay(500);           // TODO Find out if we can drop this
+
+  ts_max = millis() + 4000;
+  // +FTPPUT:2,22
+  if (!waitForMessage("+FTPPUT:2,", ts_max)) {
+    // How bad is it if we ignore this
+  }
+
+  // Send data ...
+  for (size_t i = 0; i < size; ++i) {
+    _myStream->print((char)(*read)());
+  }
+
+  // Expected reply:
+  // +FTPPUT:2,22
+  // OK
+  // +FTPPUT:1,1,1360
+
+  if (!waitForOK()) {
+    return false;
+  }
+  ts_max = millis() + 4000;
+  // +FTPPUT:1,1,1360
+  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+    // How bad is it if we ignore this
+  }
+
+  return true;
+}
 
 bool GPRSbeeClass::sendFTPdata(uint8_t *data, size_t size)
 {
+  // Send the bytes in chunks that are maximized by the maximum
+  // FTP length
   while (size > 0) {
     size_t my_size = size;
     if (my_size > _ftpMaxLength) {
@@ -950,6 +992,22 @@ bool GPRSbeeClass::sendFTPdata(uint8_t *data, size_t size)
       return false;
     }
     data += my_size;
+    size -= my_size;
+  }
+  return true;
+}
+bool GPRSbeeClass::sendFTPdata(uint8_t (*read)(), size_t size)
+{
+  // Send the bytes in chunks that are maximized by the maximum
+  // FTP length
+  while (size > 0) {
+    size_t my_size = size;
+    if (my_size > _ftpMaxLength) {
+      my_size = _ftpMaxLength;
+    }
+    if (!sendFTPdata_low(read, my_size)) {
+      return false;
+    }
     size -= my_size;
   }
   return true;
