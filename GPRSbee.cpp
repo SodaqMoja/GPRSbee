@@ -65,7 +65,7 @@ bool GPRSbeeClass::off()
     // There should be a message "NORMAL POWER DOWN"
     // Shall we wait for it?
     uint32_t ts_max = millis() + 4000;
-    if (waitForMessage("NORMAL POWER DOWN", ts_max)) {
+    if (waitForMessage_P(PSTR("NORMAL POWER DOWN"), ts_max)) {
       // OK. The SIM900 is switched off
     } else {
       // Should we care if it didn't?
@@ -99,7 +99,7 @@ bool GPRSbeeClass::isAlive()
   // Send "AT" and wait for "OK"
   // Try it at least 3 times before deciding it failed
   for (int i = 0; i < 3; i++) {
-    sendCommand("AT");
+    sendCommand_P(PSTR("AT"));
     if (waitForOK()) {
       return true;
     }
@@ -111,7 +111,7 @@ void GPRSbeeClass::switchEchoOff()
 {
   if (!_echoOff) {
     // Suppress echoing
-    if (!sendCommandWaitForOK("ATE0")) {
+    if (!sendCommandWaitForOK_P(PSTR("ATE0"))) {
       return;
     }
     _echoOff = true;
@@ -210,7 +210,7 @@ bool GPRSbeeClass::waitForOK(uint16_t timeout)
       // Skip empty lines
       continue;
     }
-    if (strcmp(_SIM900_buffer, "OK") == 0) {
+    if (strcmp_P(_SIM900_buffer, PSTR("OK")) == 0) {
       return true;
     }
     // Other input is skipped.
@@ -228,6 +228,21 @@ bool GPRSbeeClass::waitForMessage(const char *msg, uint32_t ts_max)
       continue;
     }
     if (strncmp(_SIM900_buffer, msg, strlen(msg)) == 0) {
+      return true;
+    }
+  }
+  return false;         // This indicates: timed out
+}
+bool GPRSbeeClass::waitForMessage_P(const char *msg, uint32_t ts_max)
+{
+  int len;
+  //diagPrint(F("waitForMessage: ")); diagPrintLn(msg);
+  while ((len = readLine(ts_max)) >= 0) {
+    if (len == 0) {
+      // Skip empty lines
+      continue;
+    }
+    if (strncmp_P(_SIM900_buffer, msg, strlen_P(msg)) == 0) {
       return true;
     }
   }
@@ -304,6 +319,13 @@ void GPRSbeeClass::sendCommand(const char *cmd)
   _myStream->print(cmd);
   _myStream->print('\r');
 }
+void GPRSbeeClass::sendCommand_P(const char *cmd)
+{
+  flushInput();
+  diagPrint(F(">> ")); diagPrintLn(reinterpret_cast<const __FlashStringHelper *>(cmd));
+  _myStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
+  _myStream->print('\r');
+}
 
 /*
  * \brief Send a command to the SIM900 and wait for "OK"
@@ -315,6 +337,11 @@ void GPRSbeeClass::sendCommand(const char *cmd)
 bool GPRSbeeClass::sendCommandWaitForOK(const char *cmd, uint16_t timeout)
 {
   sendCommand(cmd);
+  return waitForOK(timeout);
+}
+bool GPRSbeeClass::sendCommandWaitForOK_P(const char *cmd, uint16_t timeout)
+{
+  sendCommand_P(cmd);
   return waitForOK(timeout);
 }
 
@@ -431,7 +458,7 @@ bool GPRSbeeClass::waitForCREG()
   uint32_t ts_max = millis() + 10000;
   int value;
   while (!isTimedOut(ts_max)) {
-    sendCommand("AT+CREG?");
+    sendCommand_P(PSTR("AT+CREG?"));
     // Reply is:
     // +CREG: <n>,<stat>[,<lac>,<ci>]   mostly this is +CREG: 0,1
     // we want the second number, the <stat>
@@ -442,7 +469,7 @@ bool GPRSbeeClass::waitForCREG()
     // 4 = Unknown
     // 5 = Registered, roaming
     value = 0;
-    if (waitForMessage("+CREG:", ts_max)) {
+    if (waitForMessage_P(PSTR("+CREG:"), ts_max)) {
       const char *ptr = strchr(_SIM900_buffer, ',');
       if (ptr) {
         ++ptr;
@@ -511,52 +538,52 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK("AT+CGATT=1", 6000)) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 6000)) {
     goto cmd_error;
   }
 
   // AT+CSTT=<apn>,<username>,<password>
-  strcpy(cmdbuf, "AT+CSTT=\"");
+  strcpy_P(cmdbuf, PSTR("AT+CSTT=\""));
   strcat(cmdbuf, apn);
   strcat(cmdbuf, "\"");
   if (!sendCommandWaitForOK(cmdbuf)) {
     goto cmd_error;
   }
 
-  if (!sendCommandWaitForOK("AT+CIICR")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CIICR"))) {
     goto cmd_error;
   }
 
 #if 0
   // Get local IP address
-  if (!sendCommandWaitForOK("AT+CISFR")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CISFR"))) {
     goto cmd_error;
   }
 #endif
 
   // AT+CIPSHUT
-  sendCommand("AT+CIPSHUT");
+  sendCommand_P(PSTR("AT+CIPSHUT"));
   ts_max = millis() + 4000;             // Is this enough?
-  if (!waitForMessage("SHUT OK", ts_max)) {
+  if (!waitForMessage_P(PSTR("SHUT OK"), ts_max)) {
     goto cmd_error;
   }
 
   if (transMode) {
-    if (!sendCommandWaitForOK("AT+CIPMODE=1")) {
+    if (!sendCommandWaitForOK_P(PSTR("AT+CIPMODE=1"))) {
       goto cmd_error;
     }
     //AT+CIPCCFG
     // Read the current settings
-    if (!sendCommandWaitForOK("AT+CIPCCFG?")) {
+    if (!sendCommandWaitForOK_P(PSTR("AT+CIPCCFG?"))) {
       goto cmd_error;
     }
   }
 
   // Start up the connection
   // AT+CIPSTART="TCP","server",8500
-  strcpy(cmdbuf, "AT+CIPSTART=\"TCP\",\"");
+  strcpy_P(cmdbuf, PSTR("AT+CIPSTART=\"TCP\",\""));
   strcat(cmdbuf, server);
-  strcat(cmdbuf, "\",");
+  strcat_P(cmdbuf, PSTR("\","));
   itoa(port, cmdbuf + strlen(cmdbuf), 10);
   if (!sendCommandWaitForOK(cmdbuf)) {
     goto cmd_error;
@@ -576,7 +603,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
   }
 
   // AT+CIPQSEND=0  normal send mode (reply after each data send will be SEND OK)
-  if (false && !sendCommandWaitForOK("AT+CIPQSEND=0")) {
+  if (false && !sendCommandWaitForOK_P(PSTR("AT+CIPQSEND=0"))) {
     goto cmd_error;
   }
 
@@ -603,9 +630,9 @@ void GPRSbeeClass::closeTCP()
     delay(500);
     // TODO Will the SIM900 answer with "OK"?
   }
-  sendCommand("AT+CIPSHUT");
+  sendCommand_P(PSTR("AT+CIPSHUT"));
   ts_max = millis() + 4000;             // Is this enough?
-  if (!waitForMessage("SHUT OK", ts_max)) {
+  if (!waitForMessage_P(PSTR("SHUT OK"), ts_max)) {
     diagPrintLn(F("closeTCP failed!"));
   }
 
@@ -625,7 +652,7 @@ bool GPRSbeeClass::isTCPConnected()
   if (_transMode) {
     // We need to send +++
     delay(1000);
-    _myStream->print("+++");
+    _myStream->print(F("+++"));
     delay(500);
     if (!waitForOK()) {
       goto end;
@@ -637,11 +664,11 @@ bool GPRSbeeClass::isTCPConnected()
   // OK
   // STATE: <state>
   // The only good answer is "CONNECT OK"
-  if (!sendCommandWaitForOK("AT+CIPSTATUS")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CIPSTATUS"))) {
     goto end;
   }
   ts_max = millis() + 4000;             // Is this enough?
-  if (!waitForMessage("STATE:", ts_max)) {
+  if (!waitForMessage_P(PSTR("STATE:"), ts_max)) {
     goto end;
   }
   ptr = _SIM900_buffer + 6;
@@ -649,16 +676,16 @@ bool GPRSbeeClass::isTCPConnected()
     ++ptr;
   }
   // Look at the state
-  if (strcmp(ptr, "CONNECT OK") != 0) {
+  if (strcmp_P(ptr, PSTR("CONNECT OK")) != 0) {
     goto end;
   }
 
   if (_transMode) {
     // We must switch back to transparent mode
-    sendCommand("ATO0");
+    sendCommand_P(PSTR("ATO0"));
     // TODO wait for "CONNECT" or "NO CARRIER"
     ts_max = millis() + 4000;             // Is this enough? Or too much
-    if (!waitForMessage("CONNECT", ts_max)) {
+    if (!waitForMessage_P(PSTR("CONNECT"), ts_max)) {
       goto end;
     }
   }
@@ -679,7 +706,7 @@ bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
 
   delay(500);
   flushInput();
-  _myStream->print("AT+CIPSEND=");
+  _myStream->print(F("AT+CIPSEND="));
   _myStream->println(data_len);
   ts_max = millis() + 4000;             // Is this enough?
   if (!waitForPrompt("> ", ts_max)) {
@@ -692,7 +719,7 @@ bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
   }
   //
   ts_max = millis() + 4000;             // Is this enough?
-  if (!waitForMessage("SEND OK", ts_max)) {
+  if (!waitForMessage_P(PSTR("SEND OK"), ts_max)) {
     goto error;
   }
 
@@ -755,7 +782,7 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apn
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK("AT+CGATT=1", 6000)) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 6000)) {
     goto cmd_error;
   }
 
@@ -763,13 +790,13 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apn
     goto cmd_error;
   }
 
-  if (!sendCommandWaitForOK("AT+FTPCID=1")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+FTPCID=1"))) {
     goto cmd_error;
   }
 
   // connect to FTP server
   //snprintf(cmd, sizeof(cmd), "AT+FTPSERV=\"%s\"", server);
-  strcpy(cmd, "AT+FTPSERV=\"");
+  strcpy_P(cmd, PSTR("AT+FTPSERV=\""));
   strcat(cmd, server);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
@@ -778,14 +805,14 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apn
 
   // optional "AT+FTPPORT=21";
   //snprintf(cmd, sizeof(cmd), "AT+FTPUN=\"%s\"", username);
-  strcpy(cmd, "AT+FTPUN=\"");
+  strcpy_P(cmd, PSTR("AT+FTPUN=\""));
   strcat(cmd, username);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
     goto cmd_error;
   }
   //snprintf(cmd, sizeof(cmd), "AT+FTPPW=\"%s\"", password);
-  strcpy(cmd, "AT+FTPPW=\"");
+  strcpy_P(cmd, PSTR("AT+FTPPW=\""));
   strcat(cmd, password);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
@@ -819,14 +846,14 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
 
   // Open FTP file
   //snprintf(cmd, sizeof(cmd), "AT+FTPPUTNAME=\"%s\"", fname);
-  strcpy(cmd, "AT+FTPPUTNAME=\"");
+  strcpy_P(cmd, PSTR("AT+FTPPUTNAME=\""));
   strcat(cmd, fname);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
     goto ending;
   }
   //snprintf(cmd, sizeof(cmd), "AT+FTPPUTPATH=\"%s\"", FTPPATH);
-  strcpy(cmd, "AT+FTPPUTPATH=\"");
+  strcpy_P(cmd, PSTR("AT+FTPPUTPATH=\""));
   strcat(cmd, path);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
@@ -835,7 +862,7 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
 
   // Repeat until we get OK
   for (retry = 0; retry < 5; retry++) {
-    if (sendCommandWaitForOK("AT+FTPPUT=1")) {
+    if (sendCommandWaitForOK_P(PSTR("AT+FTPPUT=1"))) {
       break;
     }
   }
@@ -846,10 +873,10 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
   // +FTPPUT:1,1,1360  <= the 1360 is <maxlength>
   // +FTPPUT:1,66      <= this is an error
   ts_max = millis() + 6000;
-  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
     goto ending;
   }
-  if (strncmp(_SIM900_buffer + 10, "1,", 2) != 0) {
+  if (strncmp_P(_SIM900_buffer + 10, PSTR("1,"), 2) != 0) {
     // We did NOT get "+FTPPUT:1,1,", it might be an error.
     // Sometimes we see:
     //    +FTPPUT:1,66
@@ -867,7 +894,7 @@ ending:
 bool GPRSbeeClass::closeFTPfile()
 {
   // Close file
-  if (!sendCommandWaitForOK("AT+FTPPUT=2,0")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+FTPPUT=2,0"))) {
     return false;
   }
 
@@ -883,7 +910,7 @@ bool GPRSbeeClass::closeFTPfile()
    */
   // +FTPPUT:1,0
   uint32_t ts_max = millis() + 10000;
-  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
     // How bad is it if we ignore this
     //diagPrintLn(F("Timeout while waiting for +FTPPUT:1,"));
   }
@@ -905,14 +932,14 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
 
   // Send some data
   //snprintf(cmd, sizeof(cmd), "AT+FTPPUT=2,%d", size);
-  strcpy(cmd, "AT+FTPPUT=2,");
+  strcpy_P(cmd, PSTR("AT+FTPPUT=2,"));
   itoa(size, cmd + strlen(cmd), 10);
   sendCommand(cmd);
   delay(500);           // TODO Find out if we can drop this
 
   ts_max = millis() + 4000;
   // +FTPPUT:2,22
-  if (!waitForMessage("+FTPPUT:2,", ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:2,"), ts_max)) {
     // How bad is it if we ignore this
   }
 
@@ -932,7 +959,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   }
   ts_max = millis() + 4000;
   // +FTPPUT:1,1,1360
-  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
     // How bad is it if we ignore this
   }
 
@@ -945,7 +972,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
 
   // Send some data
   //snprintf(cmd, sizeof(cmd), "AT+FTPPUT=2,%d", size);
-  strcpy(cmd, "AT+FTPPUT=2,");
+  strcpy_P(cmd, PSTR("AT+FTPPUT=2,"));
   itoa(size, cmd + strlen(cmd), 10);
   _myStream->print(cmd);
   _myStream->print('\r');
@@ -953,7 +980,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
 
   ts_max = millis() + 4000;
   // +FTPPUT:2,22
-  if (!waitForMessage("+FTPPUT:2,", ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:2,"), ts_max)) {
     // How bad is it if we ignore this
   }
 
@@ -972,7 +999,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   }
   ts_max = millis() + 4000;
   // +FTPPUT:1,1,1360
-  if (!waitForMessage("+FTPPUT:1,", ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
     // How bad is it if we ignore this
   }
 
@@ -1030,11 +1057,11 @@ bool GPRSbeeClass::sendSMS(const char *telno, const char *text)
   if (!waitForSignalQuality()) {
     goto cmd_error;
   }
-  if (!sendCommandWaitForOK("AT+CMGF=1")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CMGF=1"))) {
     goto cmd_error;
   }
 
-  strcpy(cmd, "AT+CMGS=\"");
+  strcpy_P(cmd, PSTR("AT+CMGS=\""));
   strcat(cmd, telno);
   strcat(cmd, "\"");
   sendCommand(cmd);
@@ -1091,7 +1118,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK("AT+CGATT=1", 6000)) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 6000)) {
     goto cmd_error;
   }
 
@@ -1100,7 +1127,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   }
 
   // initialize http service
-  if (!sendCommandWaitForOK("AT+HTTPINIT")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPINIT"))) {
     goto cmd_error;
   }
 
@@ -1108,7 +1135,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   // FIXME Do we need this?
 
   // set http param URL value
-  strcpy(cmd, "AT+HTTPPARA=\"URL\",\"");
+  strcpy_P(cmd, PSTR("AT+HTTPPARA=\"URL\",\""));
   if (strlen(cmd) + strlen(url) + 2 > sizeof(cmd)) {
     // Buffer overflow
     goto cmd_error;
@@ -1120,7 +1147,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   }
 
   // set http action type 0 = GET, 1 = POST, 2 = HEAD
-  if (!sendCommandWaitForOK("AT+HTTPACTION=0")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPACTION=0"))) {
     goto cmd_error;
   }
   // Now we're expecting something like this: +HTTPACTION: <Method>,<StatusCode>,<DataLen>
@@ -1128,7 +1155,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   // <StatusCode> 200
   // <DataLen> ??
   ts_max = millis() + 4000;
-  if (waitForMessage("+HTTPACTION:", ts_max)) {
+  if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
     // TODO Check for StatusCode 200
     // TODO Check for DataLen
   }
@@ -1138,9 +1165,9 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   //   +HTTPREAD:<date_len>
   //   <data>
   //   OK
-  sendCommand("AT+HTTPREAD");
+  sendCommand_P(PSTR("AT+HTTPREAD"));
   ts_max = millis() + 8000;
-  if (waitForMessage("+HTTPREAD:", ts_max)) {
+  if (waitForMessage_P(PSTR("+HTTPREAD:"), ts_max)) {
     const char *ptr = _SIM900_buffer + 10;
     char *bufend;
     getLength = strtol(ptr, &bufend, 0);
@@ -1168,7 +1195,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
     goto cmd_error;
   }
 
-  if (!sendCommandWaitForOK("AT+HTTPTERM")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPTERM"))) {
     // This is an error, but we can still return success.
     goto cmd_error;
   }
@@ -1191,19 +1218,19 @@ bool GPRSbeeClass::setBearerParms(const char *apn, const char *user, const char 
   int retry;
 
   // SAPBR=3 Set bearer parameters
-  if (!sendCommandWaitForOK("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\"")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""))) {
     goto ending;
   }
 
   // SAPBR=3 Set bearer parameters
-  strcpy(cmd, "AT+SAPBR=3,1,\"APN\",\"");
+  strcpy_P(cmd, PSTR("AT+SAPBR=3,1,\"APN\",\""));
   strcat(cmd, apn);
   strcat(cmd, "\"");
   if (!sendCommandWaitForOK(cmd)) {
     goto ending;
   }
   if (user && user[0]) {
-    strcpy(cmd, "AT+SAPBR=3,1,\"USER\",\"");
+    strcpy_P(cmd, PSTR("AT+SAPBR=3,1,\"USER\",\""));
     strcat(cmd, user);
     strcat(cmd, "\"");
     if (!sendCommandWaitForOK(cmd)) {
@@ -1211,7 +1238,7 @@ bool GPRSbeeClass::setBearerParms(const char *apn, const char *user, const char 
     }
   }
   if (pwd && pwd[0]) {
-    strcpy(cmd, "AT+SAPBR=3,1,\"PWD\",\"");
+    strcpy_P(cmd, PSTR("AT+SAPBR=3,1,\"PWD\",\""));
     strcat(cmd, pwd);
     strcat(cmd, "\"");
     if (!sendCommandWaitForOK(cmd)) {
@@ -1222,7 +1249,7 @@ bool GPRSbeeClass::setBearerParms(const char *apn, const char *user, const char 
   // SAPBR=1 Open bearer
   // This command can fail if signal quality is low, or if we're too fast
   for (retry = 0; retry < 5; retry++) {
-    if (sendCommandWaitForOK("AT+SAPBR=1,1")) {
+    if (sendCommandWaitForOK_P(PSTR("AT+SAPBR=1,1"))) {
       break;
     }
   }
@@ -1232,7 +1259,7 @@ bool GPRSbeeClass::setBearerParms(const char *apn, const char *user, const char 
 
   // SAPBR=2 Query bearer
   // Expect +SAPBR: <cid>,<Status>,<IP_Addr>
-  if (!sendCommandWaitForOK("AT+SAPBR=2,1")) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+SAPBR=2,1"))) {
     goto ending;
   }
 
