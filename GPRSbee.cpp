@@ -439,7 +439,7 @@ bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_
 bool GPRSbeeClass::waitForSignalQuality()
 {
   // TODO This timeout is maybe too long.
-  uint32_t ts_max = millis() + 20000;
+  uint32_t ts_max = millis() + 120000;
   int value;
   while (!isTimedOut(ts_max)) {
     if (getIntValue("AT+CSQ", "+CSQ:", &value, ts_max)) {
@@ -477,7 +477,7 @@ bool GPRSbeeClass::waitForCREG()
       }
     }
     waitForOK();
-    if (value == 1 /* || value == 5 */) {
+    if (value == 1 || value == 5) {
       return true;
     }
     delay(500);
@@ -1281,4 +1281,39 @@ bool GPRSbeeClass::getGCAP(char *buffer, size_t buflen)
   switchEchoOff();
   uint32_t ts_max = millis() + 2000;
   return getStrValue("AT+GCAP", "+GCAP:", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCIMI(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 2000;
+  return getStrValue("AT+CIMI", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCLIP(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+CLIP?", "+CLIP:", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCLIR(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+CLIR?", "+CLIR:", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCOLP(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+COLP?", "+COLP:", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCOPS(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+COPS?", "+COPS:", buffer, buflen, ts_max);
 }
