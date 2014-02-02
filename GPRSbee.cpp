@@ -863,27 +863,28 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
   // Repeat until we get OK
   for (retry = 0; retry < 5; retry++) {
     if (sendCommandWaitForOK_P(PSTR("AT+FTPPUT=1"))) {
+      // +FTPPUT:1,1,1360  <= the 1360 is <maxlength>
+      // +FTPPUT:1,61      <= this is an error (Net error)
+      // +FTPPUT:1,66      <= this is an error (operation not allowed)
+      // This can take a while ...
+      ts_max = millis() + 5000;
+      if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
+        // Try again.
+        isAlive();
+        continue;
+      }
+      if (strncmp_P(_SIM900_buffer + 10, PSTR("1,"), 2) != 0) {
+        // We did NOT get "+FTPPUT:1,1,", it might be an error.
+        goto ending;
+      }
+      _ftpMaxLength = strtol(_SIM900_buffer + 12, NULL, 0);
+
       break;
     }
   }
   if (retry >= 5) {
     goto ending;
   }
-
-  // +FTPPUT:1,1,1360  <= the 1360 is <maxlength>
-  // +FTPPUT:1,66      <= this is an error
-  ts_max = millis() + 6000;
-  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
-    goto ending;
-  }
-  if (strncmp_P(_SIM900_buffer + 10, PSTR("1,"), 2) != 0) {
-    // We did NOT get "+FTPPUT:1,1,", it might be an error.
-    // Sometimes we see:
-    //    +FTPPUT:1,66
-    // The doc says that 66 is the error, but 66 is not documented
-    goto ending;
-  }
-  _ftpMaxLength = strtol(_SIM900_buffer + 12, NULL, 0);
 
   return true;
 
