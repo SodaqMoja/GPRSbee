@@ -367,7 +367,7 @@ bool GPRSbeeClass::getIntValue(const char *cmd, const char *reply, int * value, 
   if (waitForMessage(reply, ts_max)) {
     const char *ptr = _SIM900_buffer + strlen(reply);
     char *bufend;
-    *value = strtol(ptr, &bufend, 0);
+    *value = strtoul(ptr, &bufend, 0);
     if (bufend == ptr) {
       // Invalid number
       return false;
@@ -473,7 +473,7 @@ bool GPRSbeeClass::waitForCREG()
       const char *ptr = strchr(_SIM900_buffer, ',');
       if (ptr) {
         ++ptr;
-        value = strtol(ptr, NULL, 0);
+        value = strtoul(ptr, NULL, 0);
       }
     }
     waitForOK();
@@ -877,7 +877,7 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
         // We did NOT get "+FTPPUT:1,1,", it might be an error.
         goto ending;
       }
-      _ftpMaxLength = strtol(_SIM900_buffer + 12, NULL, 0);
+      _ftpMaxLength = strtoul(_SIM900_buffer + 12, NULL, 0);
 
       break;
     }
@@ -1171,7 +1171,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   if (waitForMessage_P(PSTR("+HTTPREAD:"), ts_max)) {
     const char *ptr = _SIM900_buffer + 10;
     char *bufend;
-    getLength = strtol(ptr, &bufend, 0);
+    getLength = strtoul(ptr, &bufend, 0);
     if (bufend == ptr) {
       // Invalid number
       goto cmd_error;
