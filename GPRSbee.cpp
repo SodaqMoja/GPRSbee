@@ -455,7 +455,7 @@ bool GPRSbeeClass::waitForSignalQuality()
 bool GPRSbeeClass::waitForCREG()
 {
   // TODO This timeout is maybe too long.
-  uint32_t ts_max = millis() + 10000;
+  uint32_t ts_max = millis() + 120000;
   int value;
   while (!isTimedOut(ts_max)) {
     sendCommand_P(PSTR("AT+CREG?"));
