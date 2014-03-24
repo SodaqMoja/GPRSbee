@@ -66,6 +66,10 @@ public:
   bool getCLIR(char *buffer, size_t buflen);
   bool getCOLP(char *buffer, size_t buflen);
   bool getCOPS(char *buffer, size_t buflen);
+  bool getCCLK(char *buffer, size_t buflen);
+
+  void enableLTS();
+  void disableLTS();
 
 private:
   bool isOn();

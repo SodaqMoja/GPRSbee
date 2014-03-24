@@ -133,22 +133,30 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
 {
   uint32_t ts_waitLF = 0;
   bool seenCR = false;
+  int c;
 
   //diagPrintLn(F("readLine"));
   _SIM900_bufcnt = 0;
   while (!isTimedOut(ts_max)) {
-    int c = _myStream->read();
-    if (c < 0) {
-      if (seenCR && isTimedOut(ts_waitLF)) {
+    if (seenCR) {
+      c = _myStream->peek();
+      // ts_waitLF is guaranteed to be non-zero
+      if ((c == -1 && isTimedOut(ts_waitLF)) || c != '\n') {
+        //diagPrint(F("readLine:  peek '")); diagPrint(c); diagPrintLn('\'');
         // Line ended with just <CR>. That's OK too.
         goto ok;
       }
+      // Only \n should fall through
+    }
+
+    c = _myStream->read();
+    if (c < 0) {
       continue;
     }
     diagPrint((char)c);                 // echo the char
+    seenCR = c == '\r';
     if (c == '\r') {
-      seenCR = true;
-      ts_waitLF = millis() + 500;       // Wait another .5 sec for an optional LF
+      ts_waitLF = millis() + 50;        // Wait another .05 sec for an optional LF
     } else if (c == '\n') {
       goto ok;
     } else {
@@ -1317,4 +1325,23 @@ bool GPRSbeeClass::getCOPS(char *buffer, size_t buflen)
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
   return getStrValue("AT+COPS?", "+COPS:", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCCLK(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+CCLK?", "+CCLK:", buffer, buflen, ts_max);
+}
+
+void GPRSbeeClass::enableLTS()
+{
+  if (!sendCommandWaitForOK_P(PSTR("AT+CLTS=1"), 6000)) {
+  }
+}
+
+void GPRSbeeClass::disableLTS()
+{
+  if (!sendCommandWaitForOK_P(PSTR("AT+CLTS=0"), 6000)) {
+  }
 }
