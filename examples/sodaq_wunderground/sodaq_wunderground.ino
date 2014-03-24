@@ -66,7 +66,7 @@ Current settings:
 #include <Adafruit_BMP085.h>
 #include <SHT2x.h>
 #include <Sodaq_DS3231.h>
-#include <Sodaq_dataflash.h>
+#include <SoftwareSerial.h>
 #include <Wire.h>
 #include <GPRSbee.h>
 
@@ -85,11 +85,16 @@ boolean doTimeA;
 boolean doTimeB;
 
 //#########   pin definitions   ########
-#define GPRSBEE_PWRPIN  8
-#define XBEECTS_PIN     9
+#define XBEEDTR_PIN     7
+#define XBEECTS_PIN     8
 
-#define DIAGPORT_RX     10
-#define DIAGPORT_TX     11
+#define GROVEPWR_PIN    6
+#define GROVEPWR_OFF    LOW
+#define GROVEPWR_ON     HIGH
+
+// Only needed if DIAG is enabled
+#define DIAGPORT_RX     4       // PD4 Note. No interrupt. Cannot be used for input
+#define DIAGPORT_TX     5       // PD5
 
 
 //######### modifiable settings ########
@@ -101,13 +106,12 @@ struct eeprom_config_t
 } config;
 
 //#########   diagnostic    #############
-// Uncomment or make it an #udef to disable diagnostic output
 #define ENABLE_DIAG     1
 
-#ifdef ENABLE_DIAG
+#if ENABLE_DIAG
+
+// Which port is the diag port (A Software Serial or Serial1 or what?
 #if 1
-// Select Software Serial for the diagnostic output
-#include <SoftwareSerial.h>
 SoftwareSerial diagport(DIAGPORT_RX, DIAGPORT_TX);
 #else
 // Select Serial1 for the diagnostic output
@@ -145,17 +149,19 @@ void getNowUrlEscaped(char *buffer);
 //#########    setup        #############
 void setup()
 {
-  gprsport.begin(19200);
-  gprsbee.init(gprsport, XBEECTS_PIN, GPRSBEE_PWRPIN);
+  gprsport.begin(9600);
+  gprsbee.init(gprsport, XBEECTS_PIN, XBEEDTR_PIN);
 #ifdef ENABLE_DIAG
   diagport.begin(9600);
   gprsbee.setDiag(diagport);
 #endif
+  DIAGPRINTLN("SODAQ wunderground");
 
   // Make sure the GPRSbee is switched off
   gprsbee.off();
 
-  bmp.begin();  // This also does Wire.begin();
+  Wire.begin();         // bmp.begin() does it too, but hey it won't hurt
+  bmp.begin();
   rtc.begin();
   getSettings();
 

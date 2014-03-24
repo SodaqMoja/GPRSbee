@@ -30,14 +30,8 @@
 
 //#########       diag      #############
 #ifdef ENABLE_DIAG
-#if defined(UBRRH) || defined(UBRR0H)
-// There probably is no other Serial port that we can use
-// Use a Software Serial instead
 #include <SoftwareSerial.h>
 SoftwareSerial diagport(DIAGPORT_RX, DIAGPORT_TX);
-#else
-#define diagport Serial;
-#endif
 #endif
 
 //######### forward declare #############
