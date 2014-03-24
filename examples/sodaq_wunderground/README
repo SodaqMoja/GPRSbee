@@ -1,0 +1,18 @@
+This is an example to upload data to the Weather Underground. The code
+is purely for educational purpose. No guarantee that it is 100% correct.
+
+After you build the code and upload it to a SODAQ board the program will
+start by reading the wunderground parameters.
+
+The program uses Serial for this.
+
+At the prompt you can type any of the following commands (see the code for
+more details):
+ id=<some pws id>
+ pw=<the pws password>
+ ts=<the current timestamp>
+ tb=<the interval for uploading>
+
+After the parameters are entered you must enter "ok" to start the program.
+It will be better to disconnect the USB because it may interfere with the
+GPRSbee which is also connected to Serial.
