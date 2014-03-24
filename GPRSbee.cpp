@@ -546,7 +546,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 6000)) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 16000)) {
     goto cmd_error;
   }
 
@@ -875,7 +875,7 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
       // +FTPPUT:1,61      <= this is an error (Net error)
       // +FTPPUT:1,66      <= this is an error (operation not allowed)
       // This can take a while ...
-      ts_max = millis() + 5000;
+      ts_max = millis() + 15000;
       if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
         // Try again.
         isAlive();
