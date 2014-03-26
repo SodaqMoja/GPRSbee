@@ -24,6 +24,17 @@
 #include <Arduino.h>
 #include <Stream.h>
 
+// Comment this line, or make it an undef to disable
+// diagnostic
+#define ENABLE_GPRSBEE_DIAG     1
+#if ENABLE_GPRSBEE_DIAG
+#define diagPrint(...) { if (_diagStream) _diagStream->print(__VA_ARGS__); }
+#define diagPrintLn(...) { if (_diagStream) _diagStream->println(__VA_ARGS__); }
+#else
+#define diagPrint(...)
+#define diagPrintLn(...)
+#endif
+
 class GPRSbeeClass
 {
 public:
@@ -100,19 +111,6 @@ private:
 
   bool sendFTPdata_low(uint8_t *buffer, size_t size);
   bool sendFTPdata_low(uint8_t (*read)(), size_t size);
-
-  void diagPrint(const char *str) { if (_diagStream) _diagStream->print(str); }
-  void diagPrintLn(const char *str) { if (_diagStream) _diagStream->println(str); }
-  void diagPrint(const __FlashStringHelper *str) { if (_diagStream) _diagStream->print(str); }
-  void diagPrintLn(const __FlashStringHelper *str) { if (_diagStream) _diagStream->println(str); }
-  void diagPrint(int i, int base=DEC) { if (_diagStream) _diagStream->print(i, base); }
-  void diagPrintLn(int i, int base=DEC) { if (_diagStream) _diagStream->println(i, base); }
-  void diagPrint(unsigned int i, int base=DEC) { if (_diagStream) _diagStream->print(i, base); }
-  void diagPrintLn(unsigned int i, int base=DEC) { if (_diagStream) _diagStream->println(i, base); }
-  void diagPrint(unsigned char i, int base=DEC) { if (_diagStream) _diagStream->print(i, base); }
-  void diagPrintLn(unsigned char i, int base=DEC) { if (_diagStream) _diagStream->println(i, base); }
-  void diagPrint(char c) { if (_diagStream) _diagStream->print(c); }
-  void diagPrintLn(char c) { if (_diagStream) _diagStream->println(c); }
 
 #define SIM900_BUFLEN 64
   char _SIM900_buffer[SIM900_BUFLEN + 1];           // +1 for the 0 byte
