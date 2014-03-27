@@ -546,7 +546,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 16000)) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
     goto cmd_error;
   }
 
@@ -790,7 +790,7 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apn
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 6000)) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
     goto cmd_error;
   }
 
@@ -875,7 +875,7 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
       // +FTPPUT:1,61      <= this is an error (Net error)
       // +FTPPUT:1,66      <= this is an error (operation not allowed)
       // This can take a while ...
-      ts_max = millis() + 15000;
+      ts_max = millis() + 30000;
       if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
         // Try again.
         isAlive();
@@ -918,7 +918,7 @@ bool GPRSbeeClass::closeFTPfile()
    * The FTP file seems to be closed properly, so why bother?
    */
   // +FTPPUT:1,0
-  uint32_t ts_max = millis() + 10000;
+  uint32_t ts_max = millis() + 20000;
   if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
     // How bad is it if we ignore this
     //diagPrintLn(F("Timeout while waiting for +FTPPUT:1,"));
@@ -987,7 +987,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   _myStream->print('\r');
   delay(500);           // TODO Find out if we can drop this
 
-  ts_max = millis() + 4000;
+  ts_max = millis() + 10000;
   // +FTPPUT:2,22
   if (!waitForMessage_P(PSTR("+FTPPUT:2,"), ts_max)) {
     // How bad is it if we ignore this
@@ -1006,7 +1006,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   if (!waitForOK()) {
     return false;
   }
-  ts_max = millis() + 4000;
+  ts_max = millis() + 30000;
   // +FTPPUT:1,1,1360
   if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
     // How bad is it if we ignore this
@@ -1080,7 +1080,7 @@ bool GPRSbeeClass::sendSMS(const char *telno, const char *text)
   }
   _myStream->print(text); //the message itself
   _myStream->print((char)26); //the ASCII code of ctrl+z is 26, this is needed to end the send modus and send the message.
-  if (!waitForOK(20000)) {
+  if (!waitForOK(30000)) {
     goto cmd_error;
   }
 
@@ -1127,7 +1127,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 6000)) {
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
     goto cmd_error;
   }
 
