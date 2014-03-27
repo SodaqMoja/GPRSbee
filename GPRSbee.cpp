@@ -1066,6 +1066,12 @@ bool GPRSbeeClass::sendSMS(const char *telno, const char *text)
   if (!waitForSignalQuality()) {
     goto cmd_error;
   }
+
+  // Wait for CREG
+  if (!waitForCREG()) {
+    goto cmd_error;
+  }
+
   if (!sendCommandWaitForOK_P(PSTR("AT+CMGF=1"))) {
     goto cmd_error;
   }
