@@ -935,7 +935,7 @@ bool GPRSbeeClass::closeFTPfile()
  */
 bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
 {
-  char cmd[64];
+  char cmd[20];         // Should be enough for "AT+FTPPUT=2,<num>"
   uint32_t ts_max;
   uint8_t *ptr = buffer;
 
@@ -944,7 +944,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   strcpy_P(cmd, PSTR("AT+FTPPUT=2,"));
   itoa(size, cmd + strlen(cmd), 10);
   sendCommand(cmd);
-  delay(500);           // TODO Find out if we can drop this
+  delay(200);           // TODO Find out if we can drop this
 
   ts_max = millis() + 4000;
   // +FTPPUT:2,22
@@ -963,29 +963,30 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   // OK
   // +FTPPUT:1,1,1360
 
-  if (!waitForOK()) {
+  if (!waitForOK(5000)) {
     return false;
   }
   ts_max = millis() + 4000;
   // +FTPPUT:1,1,1360
   if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
-    // How bad is it if we ignore this
+    // How bad is it if we ignore this?
+    // It informs us about the _ftpMaxLength
   }
 
   return true;
 }
+
 bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
 {
-  char cmd[64];
+  char cmd[20];         // Should be enough for "AT+FTPPUT=2,<num>"
   uint32_t ts_max;
 
   // Send some data
   //snprintf(cmd, sizeof(cmd), "AT+FTPPUT=2,%d", size);
   strcpy_P(cmd, PSTR("AT+FTPPUT=2,"));
   itoa(size, cmd + strlen(cmd), 10);
-  _myStream->print(cmd);
-  _myStream->print('\r');
-  delay(500);           // TODO Find out if we can drop this
+  sendCommand(cmd);
+  delay(200);           // TODO Find out if we can drop this
 
   ts_max = millis() + 10000;
   // +FTPPUT:2,22
@@ -1003,13 +1004,14 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   // OK
   // +FTPPUT:1,1,1360
 
-  if (!waitForOK()) {
+  if (!waitForOK(5000)) {
     return false;
   }
   ts_max = millis() + 30000;
   // +FTPPUT:1,1,1360
   if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
-    // How bad is it if we ignore this
+    // How bad is it if we ignore this?
+    // It informs us about the _ftpMaxLength
   }
 
   return true;
