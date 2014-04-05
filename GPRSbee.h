@@ -90,15 +90,15 @@ private:
   void flushInput();
   int readLine(uint32_t ts_max);
   int readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t ts_max);
-  bool waitForOK(uint16_t timeout=12000);
+  bool waitForOK(uint16_t timeout=2000);
   bool waitForMessage(const char *msg, uint32_t ts_max);
   bool waitForMessage_P(const char *msg, uint32_t ts_max);
   int waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max);
   bool waitForPrompt(const char *prompt, uint32_t ts_max);
   void sendCommand(const char *cmd);
   void sendCommand_P(const char *cmd);
-  bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=12000);
-  bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=12000);
+  bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=2000);
+  bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=2000);
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
   bool getStrValue(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max);
   bool getStrValue(const char *cmd, char * str, size_t size, uint32_t ts_max);
