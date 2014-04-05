@@ -946,14 +946,13 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   strcpy_P(cmd, PSTR("AT+FTPPUT=2,"));
   itoa(size, cmd + strlen(cmd), 10);
   sendCommand(cmd);
+  delay(200);           // TODO Find out if we can drop this
 
-  ts_max = millis() + 10000;
+  ts_max = millis() + 4000;
   // +FTPPUT:2,22
   if (!waitForMessage_P(PSTR("+FTPPUT:2,"), ts_max)) {
     // How bad is it if we ignore this
-    return false;
   }
-  delay(200);           // TODO Find out if we can drop this
 
   // Send data ...
   for (size_t i = 0; i < size; ++i) {
@@ -969,8 +968,6 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   if (!waitForOK(5000)) {
     return false;
   }
-
-  // The SIM900 informs again what the new max length is
   ts_max = millis() + 4000;
   // +FTPPUT:1,1,1360
   if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
@@ -991,14 +988,13 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   strcpy_P(cmd, PSTR("AT+FTPPUT=2,"));
   itoa(size, cmd + strlen(cmd), 10);
   sendCommand(cmd);
+  delay(200);           // TODO Find out if we can drop this
 
   ts_max = millis() + 10000;
   // +FTPPUT:2,22
   if (!waitForMessage_P(PSTR("+FTPPUT:2,"), ts_max)) {
     // How bad is it if we ignore this
-    return false;
   }
-  delay(200);           // TODO Find out if we can drop this
 
   // Send data ...
   for (size_t i = 0; i < size; ++i) {
@@ -1013,8 +1009,6 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   if (!waitForOK(5000)) {
     return false;
   }
-
-  // The SIM900 informs again what the new max length is
   ts_max = millis() + 30000;
   // +FTPPUT:1,1,1360
   if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
