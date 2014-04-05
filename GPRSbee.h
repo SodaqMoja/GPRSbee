@@ -56,7 +56,7 @@ public:
   void closeTCP();
   bool isTCPConnected();
   bool sendDataTCP(uint8_t *data, int data_len);
-  bool receiveLineTCP(char **buffer, uint16_t timeout=2000);
+  bool receiveLineTCP(char **buffer, uint16_t timeout=4000);
 
   bool openFTP(const char *apn, const char *server,
       const char *username, const char *password);
@@ -90,15 +90,15 @@ private:
   void flushInput();
   int readLine(uint32_t ts_max);
   int readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t ts_max);
-  bool waitForOK(uint16_t timeout=2000);
+  bool waitForOK(uint16_t timeout=4000);
   bool waitForMessage(const char *msg, uint32_t ts_max);
   bool waitForMessage_P(const char *msg, uint32_t ts_max);
   int waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max);
   bool waitForPrompt(const char *prompt, uint32_t ts_max);
   void sendCommand(const char *cmd);
   void sendCommand_P(const char *cmd);
-  bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=2000);
-  bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=2000);
+  bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=4000);
+  bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=4000);
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
   bool getStrValue(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max);
   bool getStrValue(const char *cmd, char * str, size_t size, uint32_t ts_max);
