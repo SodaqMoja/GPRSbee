@@ -1274,7 +1274,7 @@ bool GPRSbeeClass::setBearerParms(const char *apn, const char *user, const char 
   // SAPBR=1 Open bearer
   // This command can fail if signal quality is low, or if we're too fast
   for (retry = 0; retry < 5; retry++) {
-    if (sendCommandWaitForOK_P(PSTR("AT+SAPBR=1,1"))) {
+    if (sendCommandWaitForOK_P(PSTR("AT+SAPBR=1,1"),10000)) {
       break;
     }
   }
