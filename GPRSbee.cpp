@@ -323,6 +323,7 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
 void GPRSbeeClass::sendCommand(const char *cmd)
 {
   flushInput();
+  delay(50);
   diagPrint(F(">> ")); diagPrintLn(cmd);
   _myStream->print(cmd);
   _myStream->print('\r');
@@ -330,6 +331,7 @@ void GPRSbeeClass::sendCommand(const char *cmd)
 void GPRSbeeClass::sendCommand_P(const char *cmd)
 {
   flushInput();
+  delay(50);
   diagPrint(F(">> ")); diagPrintLn(reinterpret_cast<const __FlashStringHelper *>(cmd));
   _myStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
   _myStream->print('\r');
@@ -450,7 +452,7 @@ bool GPRSbeeClass::waitForSignalQuality()
   uint32_t ts_max = millis() + 120000;
   int value;
   while (!isTimedOut(ts_max)) {
-    if (getIntValue("AT+CSQ", "+CSQ:", &value, ts_max)) {
+    if (getIntValue("AT+CSQ", "+CSQ:", &value, millis() + 12000 )) {
       if (value >= _minSignalQuality) {
         return true;
       }
@@ -477,7 +479,7 @@ bool GPRSbeeClass::waitForCREG()
     // 4 = Unknown
     // 5 = Registered, roaming
     value = 0;
-    if (waitForMessage_P(PSTR("+CREG:"), ts_max)) {
+    if (waitForMessage_P(PSTR("+CREG:"), millis() + 12000)) {
       const char *ptr = strchr(_SIM900_buffer, ',');
       if (ptr) {
         ++ptr;
