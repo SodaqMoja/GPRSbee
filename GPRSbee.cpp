@@ -742,7 +742,7 @@ ending:
   return retval;
 }
 
-bool GPRSbeeClass::receiveLineTCP(char **buffer, uint16_t timeout)
+bool GPRSbeeClass::receiveLineTCP(const char **buffer, uint16_t timeout)
 {
   uint32_t ts_max;
   bool retval = false;
