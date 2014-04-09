@@ -23,6 +23,13 @@
 
 #include "GPRSbee.h"
 
+#if ENABLE_GPRSBEE_DIAG
+#define diagPrint(...) { if (_diagStream) _diagStream->print(__VA_ARGS__); }
+#define diagPrintLn(...) { if (_diagStream) _diagStream->println(__VA_ARGS__); }
+#else
+#define diagPrint(...)
+#define diagPrintLn(...)
+#endif
 
 
 GPRSbeeClass gprsbee;
@@ -320,20 +327,34 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
   return true;
 }
 
-void GPRSbeeClass::sendCommand(const char *cmd)
+void GPRSbeeClass::sendCommandPrepare()
 {
   flushInput();
   delay(50);
-  diagPrint(F(">> ")); diagPrintLn(cmd);
+  diagPrint(F(">> "));
+}
+void GPRSbeeClass::sendCommandPartial(const char *cmd)
+{
+  diagPrint(cmd);
   _myStream->print(cmd);
+}
+void GPRSbeeClass::sendCommandPartial_P(const char *cmd)
+{
+  diagPrint(reinterpret_cast<const __FlashStringHelper *>(cmd));
+  _myStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
+}
+void GPRSbeeClass::sendCommand(const char *cmd)
+{
+  sendCommandPrepare();
+  sendCommandPartial(cmd);
+  diagPrintLn();
   _myStream->print('\r');
 }
 void GPRSbeeClass::sendCommand_P(const char *cmd)
 {
-  flushInput();
-  delay(50);
-  diagPrint(F(">> ")); diagPrintLn(reinterpret_cast<const __FlashStringHelper *>(cmd));
-  _myStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
+  sendCommandPrepare();
+  sendCommandPartial_P(cmd);
+  diagPrintLn();
   _myStream->print('\r');
 }
 
@@ -1119,7 +1140,6 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, siz
 
 bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd, const char *url, char *buffer, size_t len)
 {
-  char cmd[128];
   uint32_t ts_max;
   size_t getLength = 0;
   int i;
@@ -1161,14 +1181,10 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   // FIXME Do we need this?
 
   // set http param URL value
-  strcpy_P(cmd, PSTR("AT+HTTPPARA=\"URL\",\""));
-  if (strlen(cmd) + strlen(url) + 2 > sizeof(cmd)) {
-    // Buffer overflow
-    goto cmd_error;
-  }
-  strcat(cmd, url);
-  strcat(cmd, "\"");
-  if (!sendCommandWaitForOK(cmd)) {
+  sendCommandPartial_P(PSTR("AT+HTTPPARA=\"URL\",\""));
+  sendCommandPartial(url);
+  sendCommand_P(PSTR("\""));
+  if (!waitForOK()) {
     goto cmd_error;
   }
 

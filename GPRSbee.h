@@ -27,13 +27,6 @@
 // Comment this line, or make it an undef to disable
 // diagnostic
 #define ENABLE_GPRSBEE_DIAG     1
-#if ENABLE_GPRSBEE_DIAG
-#define diagPrint(...) { if (_diagStream) _diagStream->print(__VA_ARGS__); }
-#define diagPrintLn(...) { if (_diagStream) _diagStream->println(__VA_ARGS__); }
-#else
-#define diagPrint(...)
-#define diagPrintLn(...)
-#endif
 
 class GPRSbeeClass
 {
@@ -95,6 +88,9 @@ private:
   bool waitForMessage_P(const char *msg, uint32_t ts_max);
   int waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max);
   bool waitForPrompt(const char *prompt, uint32_t ts_max);
+  void sendCommandPrepare();
+  void sendCommandPartial(const char *cmd);
+  void sendCommandPartial_P(const char *cmd);
   void sendCommand(const char *cmd);
   void sendCommand_P(const char *cmd);
   bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=4000);
