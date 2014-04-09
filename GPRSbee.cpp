@@ -257,7 +257,7 @@ bool GPRSbeeClass::waitForMessage_P(const char *msg, uint32_t ts_max)
   return false;         // This indicates: timed out
 }
 
-int GPRSbeeClass::waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max)
+int GPRSbeeClass::waitForMessages(PGM_P msgs[], size_t nrMsgs, uint32_t ts_max)
 {
   int len;
   //diagPrint(F("waitForMessages: ")); diagPrintLn(msgs[0]);
@@ -269,7 +269,7 @@ int GPRSbeeClass::waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts
     //diagPrint(F(" checking \"")); diagPrint(_SIM900_buffer); diagPrintLn("\"");
     for (size_t i = 0; i < nrMsgs; ++i) {
       //diagPrint(F("  checking \"")); diagPrint(msgs[i]); diagPrintLn("\"");
-      if (strcmp(_SIM900_buffer, msgs[i]) == 0) {
+      if (strcmp_P(_SIM900_buffer, msgs[i]) == 0) {
         //diagPrint(F("  found i=")); diagPrint((int)i); diagPrintLn("");
         return i;
       }
@@ -521,13 +521,14 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
   uint32_t ts_max;
   boolean retval = false;
   char cmdbuf[60];              // big enough for AT+CIPSTART="TCP","server",8500
-  const char *CIPSTART_replies[] = {
-		  "CONNECT FAIL",
-		  //"STATE: TCP CLOSED",
-		  "CONNECT",
+  PGM_P CIPSTART_replies[] = {
+      PSTR("CONNECT OK"),
+      PSTR("CONNECT"),
+
+      PSTR("CONNECT FAIL"),
+      //"STATE: TCP CLOSED",
   };
   const size_t nrReplies = sizeof(CIPSTART_replies) / sizeof(CIPSTART_replies[0]);
-  const int connect_ix = 1;     // This *must* match the index of "CONNECT" above !!!
 
   if (!on()) {
     goto ending;
@@ -607,8 +608,8 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
     // we have only seen just "CONNECT" (or an error of course).
     goto cmd_error;
   }
-  if (ix != connect_ix) {
-    // Only CIPSTART_replies[0] is acceptable, i.e. "CONNECT"
+  if (ix >= 2) {
+    // Only some CIPSTART_replies are acceptable, i.e. "CONNECT" and "CONNECT OK"
     goto cmd_error;
   }
 
