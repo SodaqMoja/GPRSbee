@@ -2,17 +2,41 @@ This is an example to upload data to the Weather Underground. The code
 is purely for educational purpose. No guarantee that it is 100% correct.
 
 After you build the code and upload it to a SODAQ board the program will
-start by reading the wunderground parameters.
+start by reading the wunderground parameters. Without filling in the
+required login details the program will loop until the parameters are
+filled in.
 
-The program uses Serial for this.
+The configuration parameters are stored in EEPROM.
 
-At the prompt you can type any of the following commands (see the code for
-more details):
- id=<some pws id>
- pw=<the pws password>
- ts=<the current timestamp>
- tb=<the interval for uploading>
+The configuration dialog looks like this:
 
-After the parameters are entered you must enter "ok" to start the program.
-It will be better to disconnect the USB because it may interfere with the
-GPRSbee which is also connected to Serial.
+SODAQ wunderground
+
+Settings:
+  sample interval (b=): 1800
+  sync RTC (rtc=): 86400
+  station name (nm=): wunderground
+  APN (apn=):
+  PWS server (srv=): weatherstation.wunderground.com
+  PWS id (id=):
+  PWS password (pw=):
+Enter command:
+
+After the parameters are entered you can enter "ok" to start the program.
+Otherwise it will continue after a 20 second timeout. (And, of course the
+required parameters must have been entered.)
+
+The example is also setup to output diagnostice messages to a Software Serial
+at D4/D5.
+
+Notice that you are encouraged to look at the source code of the sketch. The
+sketch is programmed to read the temperature and air pressure from a BMP085.
+You'll need to connect one to get any useful values for the upload. Better
+still you should connect your own sensors and modify the sketch to upload
+that data.
+
+A word of caution about the length of the URL for Weather Underground. The
+GPRSbee (i.e. SIM900) has a limited url length. It isn't documented but
+probably it is somewhere between 200 and 256.
+
+Happy coding
