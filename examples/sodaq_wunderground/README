@@ -1,6 +1,17 @@
 This is an example to upload data to the Weather Underground. The code
 is purely for educational purpose. No guarantee that it is 100% correct.
 
+Required libraries:
+
+ * Sodaq_BMP085 ( http://downloads.sodaq.net/Sodaq_BMP085.zip )
+ * Sodaq_SHT2x ( http://downloads.sodaq.net/Sodaq_SHT2x.zip )
+ * Sodaq_DS3231 ( http://downloads.sodaq.net/Sodaq_DS3231.zip )
+ * RTCTimer ( http://downloads.sodaq.net/RTCTimer.zip )
+
+Latest source code of these libraries can be found in our Github,
+see
+  https://github.com/SodaqMoja
+
 After you build the code and upload it to a SODAQ board the program will
 start by reading the wunderground parameters. Without filling in the
 required login details the program will loop until the parameters are
