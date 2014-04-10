@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Kees Bakker.  All rights reserved.
+ * Copyright (c) 2013-2014 Kees Bakker.  All rights reserved.
  *
  * This file is part of GPRSbee.
  *
@@ -59,103 +59,79 @@ Current settings:
  * Finally enter ok and the program starts.
  */
 
+//################ includes ################
+#include <avr/sleep.h>
+#include <avr/wdt.h>
+
+// Sketchbook libraries
 #include <Arduino.h>
 #include <avr/wdt.h>
 #include <avr/eeprom.h>
 
-#include <Adafruit_BMP085.h>
-#include <SHT2x.h>
+#include <Sodaq_BMP085.h>
+#include <Sodaq_SHT2x.h>
 #include <Sodaq_DS3231.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
 #include <GPRSbee.h>
+#include <RTCTimer.h>
 
-#define CONFIG_EEPROM_ADDRESS   0x200
-#define APN "internet.access.nl"
-#define SERVER "weatherstation.wunderground.com"
-#define PORTNUM 80
+#include "pindefs.h"
+#include "SQ_Diag.h"
+#include "SQ_Utils.h"
+#include "SQ_StartupCommands.h"
+#include "Config.h"
+#include "MyWatchdog.h"
 
-Adafruit_BMP085 bmp;
+//############ time service ################
+#define TIMEURL "http://time.sodaq.net/"
 
-uint32_t myTimeStamp;
-uint32_t triggerTimeB;
+static Sodaq_BMP085 bmp;
 
-char timeA_counter;
-boolean doTimeA;
-boolean doTimeB;
+static RTCTimer timer;
 
-//#########   pin definitions   ########
-#define XBEEDTR_PIN     7
-#define XBEECTS_PIN     8
-
-#define GROVEPWR_PIN    6
-#define GROVEPWR_OFF    LOW
-#define GROVEPWR_ON     HIGH
-
-// Only needed if DIAG is enabled
-#define DIAGPORT_RX     4       // PD4 Note. No interrupt. Cannot be used for input
-#define DIAGPORT_TX     5       // PD5
-
-
-//######### modifiable settings ########
-struct eeprom_config_t
-{
-  char pws_id[16];
-  char pws_password[16];
-  uint32_t timeB_interval;
-} config;
-
-//#########   diagnostic    #############
-#define ENABLE_DIAG     1
-
-#if ENABLE_DIAG
-
-// Which port is the diag port (A Software Serial or Serial1 or what?
-#if 1
-SoftwareSerial diagport(DIAGPORT_RX, DIAGPORT_TX);
-#else
-// Select Serial1 for the diagnostic output
-#define diagport Serial1
-#endif
-#define DIAGPRINT(...)          diagport.print(__VA_ARGS__)
-#define DIAGPRINTLN(...)        diagport.println(__VA_ARGS__)
-#else
-#define DIAGPRINT(...)
-#define DIAGPRINTLN(...)
-#endif
-
+// This flag is used to skip first gprsbee.off() check after an upload
+static bool skipFirst;
 
 //#########   GPRSbee Serial    #############
 // Which serial port is connected to the GPRSbee?
-#if 1
 #define gprsport        Serial
-#else
-#define gprsport        Serial1
-#endif
-
 
 //######### forward declare #############
-void helloTimeA();
-void timeA_action();
-void helloTimeB();
-void timeB_action();
+
+static void systemSleep();
+
+static uint32_t getNow();
+
+static void timeB_action(uint32_t now);
 void setupWatchdog();
-void getSettings();
-void readConfig();
-void updateConfig();
-void sendPWS(const char *server, const char *url);
-void getNowUrlEscaped(char *buffer);
+static void addNowUrlEscaped(String & str);
+static void syncRTCwithServer(uint32_t now);
+
+static bool checkConfig();
+
+//######### correct the things we hate from Arduino #############
+
+#undef abs
 
 //#########    setup        #############
 void setup()
 {
+  /* Clear WDRF in MCUSR */
+  MCUSR &= ~_BV(WDRF);
+
+  pinMode(GROVEPWR_PIN, OUTPUT);
+  digitalWrite(GROVEPWR_PIN, GROVEPWR_OFF);
+
   gprsport.begin(9600);
   gprsbee.init(gprsport, XBEECTS_PIN, XBEEDTR_PIN);
-#ifdef ENABLE_DIAG
+#if ENABLE_DIAG
   diagport.begin(9600);
+#if ENABLE_GPRSBEE_DIAG
   gprsbee.setDiag(diagport);
 #endif
-  DIAGPRINTLN("SODAQ wunderground");
+#endif
+  DIAGPRINTLN(F("SODAQ wunderground"));
 
   // Make sure the GPRSbee is switched off
   gprsbee.off();
@@ -163,391 +139,209 @@ void setup()
   Wire.begin();         // bmp.begin() does it too, but hey it won't hurt
   bmp.begin();
   rtc.begin();
-  getSettings();
+
+  parms.read();
+
+  do {
+    startupCommands(Serial);
+  } while (!checkConfig());
+  parms.dump();
+  parms.commit();
+
+  // Instruct the RTCTimer how to get the "now" timestamp.
+  timer.setNowCallback(getNow);
+
+  timer.every(parms.getB(), timeB_action);
+
+  if (parms.getS() > 10 * 60) {
+    // Do an early RTC sync, so that we don't have to wait 24 hours
+    timer.every(2L * 60, syncRTCwithServer, 1);
+  }
+  timer.every(parms.getS(), syncRTCwithServer);
+
+#if 0
+  // Do the Time B action right away (once)
+  timer.every(3, timeB_action, 1);
+#endif
 
   setupWatchdog();
 
   interrupts();
-
-  triggerTimeB = rtc.now().getEpoch() + 10;        // This will trigger timeB action right away
 }
 
 void loop()
 {
-  if (doTimeA) {
-    timeA_action();
-
-    if (doTimeB) {
-      timeB_action();
-    }
-  }
-}
-
-void helloTimeA()
-{
-  static int print_counter;
-  static uint32_t counter;
-  ++counter;
-  if (++print_counter >= 10) {
-    DIAGPRINT("timeA "); DIAGPRINTLN(counter);
-    print_counter = 0;
-  }
-}
-
-void timeA_action()
-{
-  doTimeA = false;
-  helloTimeA();
-
-  myTimeStamp = rtc.now().getEpoch();
-  if (myTimeStamp >= triggerTimeB) {
-    doTimeB = true;
+  if (hz_flag) {
+    hz_flag = false;
+    wdt_reset();
+    WDTCSR |= _BV(WDIE);
   }
 
-  // Do some work
-  // ...
+  timer.update();
+
+  systemSleep();
 }
 
-void helloTimeB()
+/*
+ * Return the current timestamp
+ *
+ * This is a wrapper function to be used for the "now" callback
+ * of the RTCTimer.
+ */
+static uint32_t getNow()
 {
-  static uint32_t counter;
-  ++counter;
-  DIAGPRINT(" timeB "); DIAGPRINTLN(counter);
+  return rtc.now().getEpoch();
+}
+
+static void addFloatToString(String & str, float val, char width, unsigned char precision)
+{
+  char buffer[20];
+  dtostrf(val, width, precision, buffer);
+  str += buffer;
+}
+
+/*
+ * Add a string from PROGMEM to a String
+ */
+static void addProgmemStringToString(String & str, PGM_P src)
+{
+  char c;
+  while ((c = pgm_read_byte(src++)) != '\0') {
+    str += c;
+  }
 }
 
 // Collect sensor data
-void timeB_action()
+static void timeB_action(uint32_t now)
 {
-  doTimeB = false;
-  triggerTimeB += config.timeB_interval;
-  helloTimeB();
-
   // Read temperature and pressure from BMP085
   float temp = bmp.readTemperature();           // in Celsius
   float pres = (float)bmp.readPressure() / 100; // in hPa
 
-  // Wunderground wants temperature in Fahrenheit and pressure in inches, hmm, what's wrong with the metric system?
+  // Wunderground wants temperature in Fahrenheit and pressure in inches,
+  // hmm, what's wrong with the metric system?
   temp = temp * 1.8 + 32;
   pres = pres / 33.8638866667;
 
-  char url[200];
-  char *ptr = url;
-  strcpy(ptr, "/weatherstation/updateweatherstation.php?ID=");
-  strcat(ptr, config.pws_id);
-  strcat(ptr, "&PASSWORD=");
-  strcat(ptr, config.pws_password);
-  strcat(ptr, "&dateutc=");
-  ptr += strlen(ptr);
-  getNowUrlEscaped(ptr);
-  strcat(ptr, "&baromin=");
-  ptr += strlen(ptr);
-  dtostrf(pres, -1, 3, ptr);
-#if 1
-  strcat(ptr, "&indoortempf=");
-  ptr += strlen(ptr);
-  dtostrf(temp, -1, 1, ptr);
-#endif
+  char buffer[20];
+  String url;
+  if (!url.reserve(250)) {
+    return;
+  }
+  addProgmemStringToString(url, PSTR("http://"));
+  url += parms.getPWSserver();
+  addProgmemStringToString(url, PSTR("/weatherstation/updateweatherstation.php?ID="));
+  url += parms.getPWSid();
+  addProgmemStringToString(url, PSTR("&PASSWORD="));
+  url += parms.getPWSpassword();
+  addProgmemStringToString(url, PSTR("&dateutc="));
+  addNowUrlEscaped(url);
+  addProgmemStringToString(url, PSTR("&baromin="));
+  addFloatToString(url, pres, -1, 3);
+  addProgmemStringToString(url, PSTR("&indoortempf="));
+  addFloatToString(url, temp, -1, 1);
   DIAGPRINTLN(url);
-
-  // Send it via HTTP GET to server
-  if (gprsbee.openTCP(APN, SERVER, PORTNUM)) {
-    sendPWS(SERVER, url);
-    gprsbee.closeTCP();
+  if (gprsbee.doHTTPGET(parms.getAPN(), url.c_str(), buffer, sizeof(buffer))) {
+    // Should we check for "success"?
   }
-}
-
-//################ watchdog timer ################
-// The watchdog timer is used to make timed interrupts at 60ms interval
-void setupWatchdog()
-{
-  // start timed sequence
-  WDTCSR |= (1<<WDCE) | (1<<WDE);
-  // set new watchdog timeout value
-  WDTCSR = (1<<WDCE) | WDTO_60MS;
-
-  WDTCSR |= _BV(WDIE);                  // Enable WDT interrupt
-}
-
-//################ interrupt ################
-ISR(WDT_vect)
-{
-  wdt_reset();
-
-  // This gives us an interval for timeA of about 15*60ms = 1 second
-  if (++timeA_counter >= 15) {
-    timeA_counter = 0;
-    doTimeA = true;
-  }
-}
-
-//################  config   ################
-void readConfig()
-{
-  struct eeprom_config_t tmp;
-  eeprom_read_block((void *)&tmp, (const void *)CONFIG_EEPROM_ADDRESS, sizeof(tmp));
-  // Only do a simple verification. A CRC16 checksum would be better.
-  if (tmp.pws_id[0] >= ' ' && tmp.pws_id[0] <= 0x7F) {
-    strcpy(config.pws_id, tmp.pws_id);
-  }
-  if (tmp.pws_password[0] >= ' ' && tmp.pws_password[0] <= 0x7F) {
-    strcpy(config.pws_password, tmp.pws_password);
-  }
-  if (tmp.timeB_interval > 0 && tmp.timeB_interval <= 3600UL*24*30) {
-    config.timeB_interval = tmp.timeB_interval;
-  }
-}
-
-void updateConfig()
-{
-  eeprom_write_block((const void *)&config, (void *)CONFIG_EEPROM_ADDRESS, sizeof(config));
-}
-
-static inline bool isTimedOut(uint32_t ts)
-{
-  return (long)(millis() - ts) >= 0;
-}
-
-// Read a line of input. Must be terminated with <CR> and optional <LF>
-void readLine(char *line, size_t size)
-{
-  int c;
-  size_t len = 0;
-  uint32_t ts_waitLF = 0;
-  bool seenCR = false;
-
-  while (1) {
-    c = Serial.read();
-    if (c < 0) {
-      if (seenCR && isTimedOut(ts_waitLF)) {
-        // Line ended with just <CR>. That's OK too.
-        goto end;
-      }
-      continue;
-    }
-    if (c != '\r') {
-      // Echo the input, but skip <CR>
-      Serial.print((char)c);
-    }
-
-    if (c == '\r') {
-      seenCR = true;
-      ts_waitLF = millis() + 500;       // Wait another .5 sec for an optional LF
-    } else if (c == '\n') {
-      goto end;
-    } else {
-      // Any other character is stored in the line buffer
-      if (len < size - 1) {
-        *line++ = c;
-        len++;
-      }
-    }
-  }
-end:
-  *line = '\0';
-}
-
-struct setting_t
-{
-  const char *name;
-  const char *cmd_prefix;
-  void *value;
-  void (*set_func)(struct setting_t *s, const char *line);
-  void (*show_func)(struct setting_t *s);
-  bool config;
-};
-
-void set_string(struct setting_t *s, const char *line)
-{
-  char *ptr = (char *)s->value;
-  if (ptr) {
-    strcpy(ptr, line);
-  }
-}
-
-void set_uint16(struct setting_t *s, const char *line)
-{
-  uint16_t *ptr = (uint16_t *)s->value;
-  if (ptr) {
-    *ptr = strtoul(line, NULL, 0);
-  }
-}
-
-void set_uint32(struct setting_t *s, const char *line)
-{
-  uint32_t *ptr = (uint32_t *)s->value;
-  if (ptr) {
-    *ptr = strtoul(line, NULL, 0);
-  }
-}
-
-void show_name(struct setting_t *s)
-{
-  char *ptr = (char *)s->value;
-  if (ptr) {
-    Serial.print("  ");
-    Serial.print(s->name);
-    Serial.print(": ");
-  }
-}
-
-void show_string(struct setting_t *s)
-{
-  char *ptr = (char *)s->value;
-  if (ptr) {
-    show_name(s);
-    Serial.println(ptr);
-  }
-}
-
-void show_uint16(struct setting_t *s)
-{
-  uint16_t *ptr = (uint16_t *)s->value;
-  if (ptr) {
-    show_name(s);
-    Serial.println(*ptr);
-  }
-}
-
-void show_uint32(struct setting_t *s)
-{
-  uint32_t *ptr = (uint32_t *)s->value;
-  if (ptr) {
-    show_name(s);
-    Serial.println(*ptr);
-  }
-}
-
-struct setting_t settings[] = {
-    {"PWS_ID",          "id=", config.pws_id,          set_string, show_string, true},
-    {"PWS_PASSWORD",    "pw=", config.pws_password,    set_string, show_string, true},
-    {"timestamp (UTC)", "ts=", &myTimeStamp,           set_uint32, show_uint32},
-    {"B interval",      "tb=", &config.timeB_interval, set_uint32, show_uint32, true},
-};
-
-void showSettings()
-{
-  Serial.println("Current settings:");
-  for (size_t i = 0; i < sizeof(settings)/sizeof(settings[0]); ++i) {
-    struct setting_t *s = &settings[i];
-    if (s->show_func) {
-      s->show_func(s);
-    }
-  }
-}
-
-int findSetting(const char *line)
-{
-  for (size_t i = 0; i < sizeof(settings)/sizeof(settings[0]); ++i) {
-    struct setting_t *s = &settings[i];
-    if (strncasecmp(line, s->cmd_prefix, strlen(s->cmd_prefix)) == 0) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// Read commands from Serial (the default Arduino serial port)
-void getSettings()
-{
-  char line[60];
-  bool done = false;
-  bool need_config_update = false;
-  int ix;
-
-  myTimeStamp = rtc.now().getEpoch();
-  // Read setting from EEPROM
-  readConfig();
-
-  while (!done) {
-    // Show current settings
-    showSettings();
-
-    Serial.print("> ");
-    readLine(line, sizeof(line));
-    if (*line == '\0') {
-      continue;
-    }
-    ix = findSetting(line);
-    if (ix >= 0) {
-      struct setting_t *s = &settings[ix];
-      if (s->set_func) {
-        s->set_func(s, line + strlen(s->cmd_prefix));
-        if (s->config) {
-          need_config_update = true;
-        }
-        if (s->value == &myTimeStamp) {
-          rtc.setEpoch(myTimeStamp);
-        }
-      }
-      continue;
-    }
-    if (strcasecmp(line, "ok") == 0) {
-      break;
-    }
-  }
-  if (need_config_update) {
-    updateConfig();
-  }
-}
-
-void sendPWS(const char *server, const char *url)
-{
-  char buffer[250];                     // !!!! Beware stack overflow!
-  char *ptr;
-  int len;
-
-  // Prepare the whole GET
-  ptr = buffer;
-  strcpy(ptr, "GET ");
-  strcat(ptr, url);
-  strcat(ptr, " HTTP/1.1\r\n");
-  strcat(ptr, "User-Agent: sodaq\r\n");
-  strcat(ptr, "Host: ");
-  strcat(ptr, server);
-  strcat(ptr, "\r\n");
-  strcat(ptr, "Accept: *" "/" "*\r\n");    // Arduino IDE gets confused about * / * in string, grrr.
-  strcat(ptr, "\r\n");
-  len = strlen(buffer);
-  DIAGPRINT(">> GET length: "); DIAGPRINTLN(len);
-  DIAGPRINT(buffer);
-  if (!gprsbee.sendDataTCP((uint8_t *)buffer, len)) {
-    DIAGPRINTLN("sendDataTCP failed!");
-  }
-
-  while (gprsbee.receiveLineTCP(&ptr, 4000)) {
-    // Ignore the result
-  }
-}
-
-static void utoa_2d(uint16_t value, char *ptr, int radix)
-{
-  if (value < 10) {
-    *ptr++ = '0';
-  }
-  utoa(value, ptr, radix);
 }
 
 /*
  * \brief Get the date and time in URL escaped format (':' => %3A, etc)
  */
-void getNowUrlEscaped(char *buffer)
+static void addNowUrlEscaped(String & str)
 {
   DateTime dt = rtc.now();
-  char *ptr = buffer;
-  utoa(dt.year(), ptr, 10);
-  strcat(ptr, "-");
-  ptr += strlen(ptr);
-  utoa_2d(dt.month(), ptr, 10);
-  strcat(ptr, "-");
-  ptr += strlen(ptr);
-  utoa_2d(dt.date(), ptr, 10);
-  strcat(ptr, "+");
-  ptr += strlen(ptr);
-  utoa_2d(dt.hour(), ptr, 10);
-  strcat(ptr, "%3A");
-  ptr += strlen(ptr);
-  utoa_2d(dt.minute(), ptr, 10);
-  strcat(ptr, "%3A");
-  ptr += strlen(ptr);
-  utoa_2d(dt.second(), ptr, 10);
+
+  add04d(str, dt.year());
+  str += '-';
+  add02d(str, dt.month());
+  str += '-';
+  add02d(str, dt.date());
+  str += '+';
+  add02d(str, dt.hour());
+  str += "%3A";
+  add02d(str, dt.minute());
+  str += "%3A";
+  add02d(str, dt.second());
+}
+
+static void doCheckGprsOff(uint32_t now)
+{
+  //DIAGPRINT(F("XBEECTS_PIN: ")); DIAGPRINTLN(digitalRead(XBEECTS_PIN));
+  if (skipFirst) {
+    // Skip first time after upload
+    skipFirst = false;
+    return;
+  }
+  gprsbee.off();
+}
+
+//######### watchdog and system sleep #############
+static void systemSleep()
+{
+  ADCSRA &= ~_BV(ADEN);         // ADC disabled
+
+  /*
+  * Possible sleep modes are (see sleep.h):
+  #define SLEEP_MODE_IDLE         (0)
+  #define SLEEP_MODE_ADC          _BV(SM0)
+  #define SLEEP_MODE_PWR_DOWN     _BV(SM1)
+  #define SLEEP_MODE_PWR_SAVE     (_BV(SM0) | _BV(SM1))
+  #define SLEEP_MODE_STANDBY      (_BV(SM1) | _BV(SM2))
+  #define SLEEP_MODE_EXT_STANDBY  (_BV(SM0) | _BV(SM1) | _BV(SM2))
+  */
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  sleep_mode();
+
+  ADCSRA |= _BV(ADEN);          // ADC enabled
+}
+
+//################ RTC ################
+/*
+ * Synchronize RTC with a time server
+ */
+static void syncRTCwithServer(uint32_t now)
+{
+  //DIAGPRINT(F("syncRTCwithServer ")); DIAGPRINTLN(now);
+
+  // If the sync does not then retry in 45 minutes or so
+  // But if the sync succeeds, the next sync will be done at the usual interval
+  char buffer[20];
+  if (gprsbee.doHTTPGET(parms.getAPN(), TIMEURL, buffer, sizeof(buffer))) {
+    //DIAGPRINT(F("HTTP GET: ")); DIAGPRINTLN(buffer);
+    uint32_t newTs;
+    if (getUValue(buffer, &newTs)) {
+      // Tweak the timestamp a little because doHTTPGET took a few seconds
+      // to close the connection after getting the time from the server
+      newTs += 3;
+      uint32_t oldTs = rtc.now().getEpoch();
+      int32_t diffTs = abs(newTs - oldTs);
+      if (diffTs > 30) {
+        DIAGPRINT(F("Updating RTC, old=")); DIAGPRINT(oldTs);
+        DIAGPRINT(F(" new=")); DIAGPRINTLN(newTs);
+        timer.adjust(oldTs, newTs);
+        rtc.setEpoch(newTs);
+      }
+      goto end;
+    }
+  }
+
+  // Sync failed.
+  // ???? Retry in, say, 3 minutes
+  //timer.every(5L * 60, syncRTCwithServer, 1);
+  showFreeRAM();
+end:
+  ;
+}
+
+/*
+ * Check if all required config parameters are filled in
+ */
+static bool checkConfig()
+{
+  if (!parms.checkConfig()) {
+    return false;
+  }
+  return true;
 }
