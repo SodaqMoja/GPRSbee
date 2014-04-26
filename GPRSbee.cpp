@@ -477,7 +477,10 @@ bool GPRSbeeClass::waitForSignalQuality()
       if (value >= _minSignalQuality) {
         return true;
       }
-      delay(500);
+    }
+    delay(500);
+    if (!isAlive()) {
+      break;
     }
   }
   return false;
@@ -512,6 +515,9 @@ bool GPRSbeeClass::waitForCREG()
       return true;
     }
     delay(500);
+    if (!isAlive()) {
+      break;
+    }
   }
   return false;
 }
@@ -1365,6 +1371,20 @@ bool GPRSbeeClass::getCCLK(char *buffer, size_t buflen)
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
   return getStrValue("AT+CCLK?", "+CCLK:", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCSPN(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+CSPN?", "+CSPN:", buffer, buflen, ts_max);
+}
+
+bool GPRSbeeClass::getCGID(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+CGID", "+GID:", buffer, buflen, ts_max);
 }
 
 void GPRSbeeClass::enableLTS()

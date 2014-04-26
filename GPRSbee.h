@@ -71,6 +71,8 @@ public:
   bool getCOLP(char *buffer, size_t buflen);
   bool getCOPS(char *buffer, size_t buflen);
   bool getCCLK(char *buffer, size_t buflen);
+  bool getCSPN(char *buffer, size_t buflen);
+  bool getCGID(char *buffer, size_t buflen);
 
   void enableLTS();
   void disableLTS();
