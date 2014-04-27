@@ -93,6 +93,8 @@ private:
   void sendCommandPrepare();
   void sendCommandPartial(const char *cmd);
   void sendCommandPartial_P(const char *cmd);
+  void sendCommandNoPrepare(const char *cmd);
+  void sendCommandNoPrepare_P(const char *cmd);
   void sendCommand(const char *cmd);
   void sendCommand_P(const char *cmd);
   bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=4000);

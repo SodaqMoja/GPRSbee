@@ -360,19 +360,27 @@ void GPRSbeeClass::sendCommandPartial_P(const char *cmd)
   diagPrint(reinterpret_cast<const __FlashStringHelper *>(cmd));
   _myStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
 }
-void GPRSbeeClass::sendCommand(const char *cmd)
+void GPRSbeeClass::sendCommandNoPrepare(const char *cmd)
 {
-  sendCommandPrepare();
   sendCommandPartial(cmd);
   diagPrintLn();
   _myStream->print('\r');
 }
-void GPRSbeeClass::sendCommand_P(const char *cmd)
+void GPRSbeeClass::sendCommandNoPrepare_P(const char *cmd)
 {
-  sendCommandPrepare();
   sendCommandPartial_P(cmd);
   diagPrintLn();
   _myStream->print('\r');
+}
+void GPRSbeeClass::sendCommand(const char *cmd)
+{
+  sendCommandPrepare();
+  sendCommandNoPrepare(cmd);
+}
+void GPRSbeeClass::sendCommand_P(const char *cmd)
+{
+  sendCommandPrepare();
+  sendCommandNoPrepare_P(cmd);
 }
 
 /*
@@ -1204,9 +1212,10 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   // FIXME Do we need this?
 
   // set http param URL value
+  sendCommandPrepare();
   sendCommandPartial_P(PSTR("AT+HTTPPARA=\"URL\",\""));
   sendCommandPartial(url);
-  sendCommand_P(PSTR("\""));
+  sendCommandNoPrepare_P(PSTR("\""));
   if (!waitForOK()) {
     goto cmd_error;
   }
