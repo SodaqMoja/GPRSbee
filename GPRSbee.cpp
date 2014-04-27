@@ -20,6 +20,7 @@
 
 #include <Arduino.h>
 #include <Stream.h>
+#include <avr/wdt.h>
 
 #include "GPRSbee.h"
 
@@ -33,6 +34,19 @@
 
 
 GPRSbeeClass gprsbee;
+
+/*
+ * A wrapper for delay that also resets the WDT while waiting
+ */
+static inline void mydelay(unsigned long nrMillis)
+{
+  while (nrMillis > 100) {
+    wdt_reset();
+    delay(100);
+    nrMillis -= 100;
+  }
+  delay(nrMillis);
+}
 
 void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin)
 {
@@ -94,10 +108,10 @@ void GPRSbeeClass::toggle()
   // To be on the safe side, make sure we start from LOW
   // TODO Decide if this is useful.
   digitalWrite(_powerPin, LOW);
-  delay(1000);
+  mydelay(1000);
 #endif
   digitalWrite(_powerPin, HIGH);
-  delay(2500);
+  mydelay(2500);
   digitalWrite(_powerPin, LOW);
 }
 
@@ -145,6 +159,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
   //diagPrintLn(F("readLine"));
   _SIM900_bufcnt = 0;
   while (!isTimedOut(ts_max)) {
+    wdt_reset();
     if (seenCR) {
       c = _myStream->peek();
       // ts_waitLF is guaranteed to be non-zero
@@ -198,6 +213,7 @@ int GPRSbeeClass::readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t
 {
   //diagPrintLn(F("readBytes"));
   while (!isTimedOut(ts_max) && len > 0) {
+    wdt_reset();
     int c = _myStream->read();
     if (c < 0) {
       continue;
@@ -295,6 +311,7 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
   const char * ptr = prompt;
 
   while (*ptr != '\0') {
+    wdt_reset();
     if (isTimedOut(ts_max)) {
       break;
     }
@@ -330,7 +347,7 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
 void GPRSbeeClass::sendCommandPrepare()
 {
   flushInput();
-  delay(50);
+  mydelay(50);
   diagPrint(F(">> "));
 }
 void GPRSbeeClass::sendCommandPartial(const char *cmd)
@@ -478,7 +495,7 @@ bool GPRSbeeClass::waitForSignalQuality()
         return true;
       }
     }
-    delay(500);
+    mydelay(500);
     if (!isAlive()) {
       break;
     }
@@ -514,7 +531,7 @@ bool GPRSbeeClass::waitForCREG()
     if (value == 1 || value == 5) {
       return true;
     }
-    delay(500);
+    mydelay(500);
     if (!isAlive()) {
       break;
     }
@@ -663,9 +680,9 @@ void GPRSbeeClass::closeTCP()
   // AT+CIPSHUT
   // Maybe we should do AT+CIPCLOSE=1
   if (_transMode) {
-    delay(1000);
+    mydelay(1000);
     _myStream->print(F("+++"));
-    delay(500);
+    mydelay(500);
     // TODO Will the SIM900 answer with "OK"?
   }
   sendCommand_P(PSTR("AT+CIPSHUT"));
@@ -689,9 +706,9 @@ bool GPRSbeeClass::isTCPConnected()
 
   if (_transMode) {
     // We need to send +++
-    delay(1000);
+    mydelay(1000);
     _myStream->print(F("+++"));
-    delay(500);
+    mydelay(500);
     if (!waitForOK()) {
       goto end;
     }
@@ -742,7 +759,7 @@ bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
   uint32_t ts_max;
   bool retval = false;
 
-  delay(500);
+  mydelay(500);
   flushInput();
   _myStream->print(F("AT+CIPSEND="));
   _myStream->println(data_len);
@@ -750,7 +767,7 @@ bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
   if (!waitForPrompt("> ", ts_max)) {
     goto error;
   }
-  delay(500);           // Wait a little, just to be sure
+  mydelay(500);           // Wait a little, just to be sure
   // Send the data
   for (int i = 0; i < data_len; ++i) {
     _myStream->print((char)*data++);
@@ -981,7 +998,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
     // How bad is it if we ignore this
     return false;
   }
-  delay(200);           // TODO Find out if we can drop this
+  mydelay(100);           // TODO Find out if we can drop this
 
   // Send data ...
   for (size_t i = 0; i < size; ++i) {
@@ -1026,7 +1043,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
     // How bad is it if we ignore this
     return false;
   }
-  delay(200);           // TODO Find out if we can drop this
+  mydelay(100);           // TODO Find out if we can drop this
 
   // Send data ...
   for (size_t i = 0; i < size; ++i) {
