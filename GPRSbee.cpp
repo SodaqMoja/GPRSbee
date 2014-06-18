@@ -40,10 +40,11 @@ GPRSbeeClass gprsbee;
  */
 static inline void mydelay(unsigned long nrMillis)
 {
-  while (nrMillis > 100) {
+  const unsigned long d = 10;
+  while (nrMillis > d) {
     wdt_reset();
-    delay(100);
-    nrMillis -= 100;
+    delay(d);
+    nrMillis -= d;
   }
   delay(nrMillis);
 }
