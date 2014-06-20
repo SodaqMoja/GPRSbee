@@ -1229,7 +1229,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   // <Method> 0
   // <StatusCode> 200
   // <DataLen> ??
-  ts_max = millis() + 4000;
+  ts_max = millis() + 8000;
   if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
     // TODO Check for StatusCode 200
     // TODO Check for DataLen
