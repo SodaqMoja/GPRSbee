@@ -92,6 +92,8 @@ bool GPRSbeeClass::off()
     } else {
       // Should we care if it didn't?
     }
+    // Wait a little longer to give the SIM900 time to really switch off.
+    mydelay(500);
   }
   _echoOff = false;
   return !isOn();
@@ -109,7 +111,7 @@ void GPRSbeeClass::toggle()
   // To be on the safe side, make sure we start from LOW
   // TODO Decide if this is useful.
   digitalWrite(_powerPin, LOW);
-  mydelay(1000);
+  mydelay(200);
 #endif
   digitalWrite(_powerPin, HIGH);
   mydelay(2500);
