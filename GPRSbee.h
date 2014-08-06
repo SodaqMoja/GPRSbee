@@ -40,6 +40,7 @@ public:
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
   bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
+  bool doHTTPGET(const char *apn, const String & url, char *buffer, size_t len);
   bool doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd,
       const char *url, char *buffer, size_t len);
   bool doHTTPGET1(const char *apn);

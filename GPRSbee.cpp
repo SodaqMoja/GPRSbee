@@ -1172,6 +1172,11 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, siz
   return doHTTPGET(apn, 0, 0, url, buffer, len);
 }
 
+bool GPRSbeeClass::doHTTPGET(const char *apn, const String & url, char *buffer, size_t len)
+{
+  return doHTTPGET(apn, 0, 0, url.c_str(), buffer, len);
+}
+
 bool GPRSbeeClass::doHTTPGET1(const char *apn)
 {
   return doHTTPGET1(apn, 0, 0);
