@@ -34,6 +34,7 @@ public:
   void init(Stream &stream, int ctsPin, int powerPin);
   bool on();
   bool off();
+  void setPowerSwitchedOnOff(bool x) { _onoffMethod = x; }
   void setDiag(Stream &stream) { _diagStream = &stream; }
   void setDiag(Stream *stream) { _diagStream = stream; }
 
@@ -83,6 +84,10 @@ public:
   void disableLTS();
 
 private:
+  bool onToggle();
+  bool offToggle();
+  bool onPowerSwitch();
+  bool offPowerSwitch();
   bool isOn();
   void toggle();
   bool isAlive();
@@ -128,6 +133,7 @@ private:
   size_t _ftpMaxLength;
   bool _transMode;
   bool _echoOff;
+  bool _onoffMethod;
 };
 
 extern GPRSbeeClass gprsbee;

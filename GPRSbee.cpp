@@ -59,6 +59,7 @@ void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin)
   _ftpMaxLength = 0;
   _transMode = false;
   _echoOff = false;
+  _onoffMethod = false;
 
   digitalWrite(_powerPin, LOW);
   pinMode(_powerPin, OUTPUT);
@@ -67,6 +68,35 @@ void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin)
 }
 
 bool GPRSbeeClass::on()
+{
+#if defined(__AVR_ATmega1284P__)
+  if (_onoffMethod) {
+    return onPowerSwitch();
+  }
+#endif
+  return onToggle();
+}
+
+bool GPRSbeeClass::off()
+{
+#if defined(__AVR_ATmega1284P__)
+  if (_onoffMethod) {
+    return offPowerSwitch();
+  }
+#endif
+  return offToggle();
+}
+
+/*
+ * Switch GPRSbee on via the toggle method
+ *
+ * The toggle method is to start with a low on DTR, then
+ * set pin DTR high for about 2-3 seconds and then set pin DTR
+ * low again.
+ *
+ * The same toggle is used to switch it off.
+ */
+bool GPRSbeeClass::onToggle()
 {
   if (!isOn()) {
     toggle();
@@ -79,8 +109,7 @@ bool GPRSbeeClass::on()
   return isOn();
 }
 
-
-bool GPRSbeeClass::off()
+bool GPRSbeeClass::offToggle()
 {
   if (isOn()) {
     toggle();
@@ -96,6 +125,37 @@ bool GPRSbeeClass::off()
     mydelay(500);
   }
   _echoOff = false;
+  return !isOn();
+}
+
+/*
+ * Switch GPRSbee on via the switched power connection of SODAQ Mbili (JP2)
+ *
+ * The SODAQ Mbili has an extra connector, JP2, which is switched via port D23.
+ * This JP2 must be connected to one of the two power connectors of GPRSbee
+ * and the battery must be connected directly to JP6 of Mbili.
+ *
+ * To use this feature you must also set the OnOff mode like this:
+ *     gprsbee.setPowerSwitchedOnOff(true);
+ */
+bool GPRSbeeClass::onPowerSwitch()
+{
+  diagPrintLn(F("on powerPin"));
+  digitalWrite(_powerPin, HIGH);
+  // Wait maximum 10 seconds for it to switch on.
+  for (uint8_t i = 0; i < 10 && !isOn(); ++i) {
+    mydelay(1000);
+  }
+  return isOn();
+}
+
+bool GPRSbeeClass::offPowerSwitch()
+{
+  diagPrintLn(F("off powerPin"));
+  digitalWrite(_powerPin, LOW);
+  // Should be instant
+  // Let's wait a little, but not too long
+  mydelay(500);
   return !isOn();
 }
 
