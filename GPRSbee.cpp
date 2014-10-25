@@ -59,7 +59,9 @@ void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin)
   _ftpMaxLength = 0;
   _transMode = false;
   _echoOff = false;
+#if defined(__AVR_ATmega1284P__)
   _onoffMethod = false;
+#endif
 
   digitalWrite(_powerPin, LOW);
   pinMode(_powerPin, OUTPUT);
@@ -71,20 +73,32 @@ bool GPRSbeeClass::on()
 {
 #if defined(__AVR_ATmega1284P__)
   if (_onoffMethod) {
-    return onPowerSwitch();
+    onPowerSwitch();
+    goto end;
   }
 #endif
-  return onToggle();
+  onToggle();
+end:
+  // Make sure it responds
+  if (!isAlive()) {
+    // Oh, no answer, maybe it's off
+    // Fall through and rely on the cts pin
+  }
+  return isOn();
 }
 
 bool GPRSbeeClass::off()
 {
 #if defined(__AVR_ATmega1284P__)
   if (_onoffMethod) {
-    return offPowerSwitch();
+    offPowerSwitch();
+    goto end;
   }
 #endif
-  return offToggle();
+  offToggle();
+end:
+  _echoOff = false;
+  return !isOn();
 }
 
 /*
@@ -96,20 +110,14 @@ bool GPRSbeeClass::off()
  *
  * The same toggle is used to switch it off.
  */
-bool GPRSbeeClass::onToggle()
+void GPRSbeeClass::onToggle()
 {
   if (!isOn()) {
     toggle();
   }
-  // Make sure it responds
-  if (!isAlive()) {
-    // Oh, no answer, maybe it's off
-    // Fall through and rely on the cts pin
-  }
-  return isOn();
 }
 
-bool GPRSbeeClass::offToggle()
+void GPRSbeeClass::offToggle()
 {
   if (isOn()) {
     toggle();
@@ -124,8 +132,6 @@ bool GPRSbeeClass::offToggle()
     // Wait a little longer to give the SIM900 time to really switch off.
     mydelay(500);
   }
-  _echoOff = false;
-  return !isOn();
 }
 
 /*
@@ -138,7 +144,7 @@ bool GPRSbeeClass::offToggle()
  * To use this feature you must also set the OnOff mode like this:
  *     gprsbee.setPowerSwitchedOnOff(true);
  */
-bool GPRSbeeClass::onPowerSwitch()
+void GPRSbeeClass::onPowerSwitch()
 {
   diagPrintLn(F("on powerPin"));
   digitalWrite(_powerPin, HIGH);
@@ -146,17 +152,15 @@ bool GPRSbeeClass::onPowerSwitch()
   for (uint8_t i = 0; i < 10 && !isOn(); ++i) {
     mydelay(1000);
   }
-  return isOn();
 }
 
-bool GPRSbeeClass::offPowerSwitch()
+void GPRSbeeClass::offPowerSwitch()
 {
   diagPrintLn(F("off powerPin"));
   digitalWrite(_powerPin, LOW);
   // Should be instant
   // Let's wait a little, but not too long
   mydelay(500);
-  return !isOn();
 }
 
 bool GPRSbeeClass::isOn()

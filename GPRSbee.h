@@ -84,10 +84,10 @@ public:
   void disableLTS();
 
 private:
-  bool onToggle();
-  bool offToggle();
-  bool onPowerSwitch();
-  bool offPowerSwitch();
+  void onToggle();
+  void offToggle();
+  void onPowerSwitch();
+  void offPowerSwitch();
   bool isOn();
   void toggle();
   bool isAlive();
@@ -133,7 +133,9 @@ private:
   size_t _ftpMaxLength;
   bool _transMode;
   bool _echoOff;
+#if defined(__AVR_ATmega1284P__)
   bool _onoffMethod;
+#endif
 };
 
 extern GPRSbeeClass gprsbee;
