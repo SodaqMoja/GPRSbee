@@ -34,7 +34,9 @@ public:
   void init(Stream &stream, int ctsPin, int powerPin);
   bool on();
   bool off();
+#if defined(__AVR_ATmega1284P__)
   void setPowerSwitchedOnOff(bool x) { _onoffMethod = x; }
+#endif
   void setDiag(Stream &stream) { _diagStream = &stream; }
   void setDiag(Stream *stream) { _diagStream = stream; }
 
