@@ -1,7 +1,7 @@
 #ifndef GPRSBEE_H_
 #define GPRSBEE_H_
 /*
- * Copyright (c) 2013 Kees Bakker.  All rights reserved.
+ * Copyright (c) 2013-2014 Kees Bakker.  All rights reserved.
  *
  * This file is part of GPRSbee.
  *
@@ -41,6 +41,11 @@ public:
   void setDiag(Stream *stream) { _diagStream = stream; }
 
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
+
+  bool doHTTPPOST(const char *apn, const char *url, const char *buffer, size_t len);
+  bool doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
+      const char *url, const char *buffer, size_t len);
+  bool doHTTPPOST2(const char *url, const char *buffer, size_t len);
 
   bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
   bool doHTTPGET(const char *apn, const String & url, char *buffer, size_t len);
@@ -98,6 +103,7 @@ private:
   int readLine(uint32_t ts_max);
   int readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t ts_max);
   bool waitForOK(uint16_t timeout=4000);
+  bool waitForDOWNLOAD(uint16_t timeout=4000);
   bool waitForMessage(const char *msg, uint32_t ts_max);
   bool waitForMessage_P(const char *msg, uint32_t ts_max);
   int waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max);
@@ -111,6 +117,8 @@ private:
   void sendCommand_P(const char *cmd);
   bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=4000);
   bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=4000);
+  bool sendCommandWaitForDOWNLOAD(const char *cmd, uint16_t timeout=4000);
+  bool sendCommandWaitForDOWNLOAD_P(const char *cmd, uint16_t timeout=4000);
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
   bool getStrValue(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max);
   bool getStrValue(const char *cmd, char * str, size_t size, uint32_t ts_max);

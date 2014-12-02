@@ -299,6 +299,23 @@ int GPRSbeeClass::readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t
   return len;
 }
 
+bool GPRSbeeClass::waitForDOWNLOAD(uint16_t timeout)
+{
+  int len;
+  uint32_t ts_max = millis() + timeout;
+  while ((len = readLine(ts_max)) >= 0) {
+    if (len == 0) {
+      // Skip empty lines
+      continue;
+    }
+    if (strcmp_P(_SIM900_buffer, PSTR("DOWNLOAD")) == 0) {
+      return true;
+    }
+    // Other input is skipped.
+  }
+  return false;         // This indicates: timed out
+}
+
 bool GPRSbeeClass::waitForOK(uint16_t timeout)
 {
   int len;
@@ -466,6 +483,12 @@ bool GPRSbeeClass::sendCommandWaitForOK_P(const char *cmd, uint16_t timeout)
 {
   sendCommand_P(cmd);
   return waitForOK(timeout);
+}
+
+bool GPRSbeeClass::sendCommandWaitForDOWNLOAD_P(const char *cmd, uint16_t timeout)
+{
+  sendCommand_P(cmd);
+  return waitForDOWNLOAD(timeout);
 }
 
 /*
@@ -1231,6 +1254,11 @@ ending:
   return retval;
 }
 
+bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *url, const char *buffer, size_t len)
+{
+  return doHTTPPOST(apn, 0, 0, url, buffer, len);
+}
+
 bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, size_t len)
 {
   return doHTTPGET(apn, 0, 0, url, buffer, len);
@@ -1282,6 +1310,68 @@ bool GPRSbeeClass::doHTTPGET1(const char *apn, const char *apnuser, const char *
   // FIXME Do we need this?
 
   retval = true;
+
+ending:
+  return retval;
+}
+
+/*
+ * The middle part of the whole HTTP POST
+ *
+ * HTTPPARA with the URL
+ * HTTPDATA
+ * HTTPACTION
+ */
+bool GPRSbeeClass::doHTTPPOST2(const char *url, const char *buffer, size_t len)
+{
+  uint32_t ts_max;
+  size_t getLength = 0;
+  int i;
+  bool retval = false;
+  char num_bytes[16];
+
+  // set http param URL value
+  sendCommandPrepare();
+  sendCommandPartial_P(PSTR("AT+HTTPPARA=\"URL\",\""));
+  sendCommandPartial(url);
+  sendCommandNoPrepare_P(PSTR("\""));
+  if (!waitForOK()) {
+    goto ending;
+  }
+
+  sendCommandPrepare();
+  sendCommandPartial_P(PSTR("AT+HTTPDATA="));
+  itoa(len - 1, num_bytes, 10);
+  sendCommandPartial(num_bytes);
+  sendCommandNoPrepare_P(PSTR(",10000"));
+  if (!waitForDOWNLOAD()) {
+    goto ending;
+  }
+
+  if (!sendCommandWaitForOK(buffer)) {
+    goto ending;
+  }
+
+  // set http action type 0 = GET, 1 = POST, 2 = HEAD
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPACTION=1"))) {
+    goto ending;
+  }
+  // Now we're expecting something like this: +HTTPACTION: <Method>,<StatusCode>,<DataLen>
+  // <Method> 0
+  // <StatusCode> 200
+  // <DataLen> ??
+  ts_max = millis() + 8000;
+  if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
+    // TODO Check for StatusCode 200
+    // TODO Check for DataLen
+  }
+
+  if (!waitForOK()) {
+    // This is an error, but we can still return success.
+    retval = true;
+  }
+
+  // All is well if we get here.
 
 ending:
   return retval;
@@ -1369,6 +1459,35 @@ void GPRSbeeClass::doHTTPGET3()
   if (!sendCommandWaitForOK_P(PSTR("AT+HTTPTERM"))) {
     // This is an error, but we can still return success.
   }
+}
+
+bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
+    const char *url, const char *buffer, size_t len)
+{
+  bool retval = false;
+
+  if (!on()) {
+    goto ending;
+  }
+
+  if (!doHTTPGET1(apn, apnuser, apnpwd)) {
+    goto cmd_error;
+  }
+
+  if (!doHTTPPOST2(url, buffer, len)) {
+    goto cmd_error;
+  }
+
+  retval = true;
+  doHTTPGET3();
+  goto ending;
+
+cmd_error:
+  diagPrintLn(F("doHTTPGET failed!"));
+
+ending:
+  off();
+  return retval;
 }
 
 bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd,
