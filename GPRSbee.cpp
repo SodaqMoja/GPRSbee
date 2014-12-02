@@ -299,23 +299,6 @@ int GPRSbeeClass::readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t
   return len;
 }
 
-bool GPRSbeeClass::waitForDOWNLOAD(uint16_t timeout)
-{
-  int len;
-  uint32_t ts_max = millis() + timeout;
-  while ((len = readLine(ts_max)) >= 0) {
-    if (len == 0) {
-      // Skip empty lines
-      continue;
-    }
-    if (strcmp_P(_SIM900_buffer, PSTR("DOWNLOAD")) == 0) {
-      return true;
-    }
-    // Other input is skipped.
-  }
-  return false;         // This indicates: timed out
-}
-
 bool GPRSbeeClass::waitForOK(uint16_t timeout)
 {
   int len;
@@ -483,12 +466,6 @@ bool GPRSbeeClass::sendCommandWaitForOK_P(const char *cmd, uint16_t timeout)
 {
   sendCommand_P(cmd);
   return waitForOK(timeout);
-}
-
-bool GPRSbeeClass::sendCommandWaitForDOWNLOAD_P(const char *cmd, uint16_t timeout)
-{
-  sendCommand_P(cmd);
-  return waitForDOWNLOAD(timeout);
 }
 
 /*
@@ -1325,8 +1302,6 @@ ending:
 bool GPRSbeeClass::doHTTPPOST2(const char *url, const char *buffer, size_t len)
 {
   uint32_t ts_max;
-  size_t getLength = 0;
-  int i;
   bool retval = false;
   char num_bytes[16];
 
@@ -1341,14 +1316,20 @@ bool GPRSbeeClass::doHTTPPOST2(const char *url, const char *buffer, size_t len)
 
   sendCommandPrepare();
   sendCommandPartial_P(PSTR("AT+HTTPDATA="));
-  itoa(len - 1, num_bytes, 10);
+  itoa(len, num_bytes, 10);
   sendCommandPartial(num_bytes);
   sendCommandNoPrepare_P(PSTR(",10000"));
-  if (!waitForDOWNLOAD()) {
+  ts_max = millis() + 4000;
+  if (!waitForMessage_P(PSTR("DOWNLOAD"), ts_max)) {
     goto ending;
   }
 
-  if (!sendCommandWaitForOK(buffer)) {
+  // Send data ...
+  for (size_t i = 0; i < len; ++i) {
+    _myStream->print(*buffer++);
+  }
+
+  if (!waitForOK()) {
     goto ending;
   }
 
@@ -1364,10 +1345,6 @@ bool GPRSbeeClass::doHTTPPOST2(const char *url, const char *buffer, size_t len)
   if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
     // TODO Check for StatusCode 200
     // TODO Check for DataLen
-  }
-
-  if (!waitForOK()) {
-    // This is an error, but we can still return success.
     retval = true;
   }
 
