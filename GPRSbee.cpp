@@ -1344,7 +1344,7 @@ bool GPRSbeeClass::doHTTPPOST2(const char *url, const char *buffer, size_t len)
   // <Method> 0
   // <StatusCode> 200
   // <DataLen> ??
-  ts_max = millis() + 8000;
+  ts_max = millis() + 20000;
   if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
     // TODO Check for StatusCode 200
     // TODO Check for DataLen
