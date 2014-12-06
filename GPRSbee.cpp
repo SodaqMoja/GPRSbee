@@ -1246,12 +1246,12 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const String & url, char *buffer, 
   return doHTTPGET(apn, 0, 0, url.c_str(), buffer, len);
 }
 
-bool GPRSbeeClass::doHTTPGET1(const char *apn)
+bool GPRSbeeClass::doHTTPprolog(const char *apn)
 {
-  return doHTTPGET1(apn, 0, 0);
+  return doHTTPprolog(apn, 0, 0);
 }
 
-bool GPRSbeeClass::doHTTPGET1(const char *apn, const char *apnuser, const char *apnpwd)
+bool GPRSbeeClass::doHTTPprolog(const char *apn, const char *apnuser, const char *apnpwd)
 {
   bool retval = false;
 
@@ -1284,7 +1284,10 @@ bool GPRSbeeClass::doHTTPGET1(const char *apn, const char *apnuser, const char *
   }
 
   // set http param CID value
-  // FIXME Do we need this?
+  // FIXME Do we really need this?
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPPARA=\"CID\",1"))) {
+    goto ending;
+  }
 
   retval = true;
 
@@ -1431,7 +1434,7 @@ ending:
   return retval;
 }
 
-void GPRSbeeClass::doHTTPGET3()
+void GPRSbeeClass::doHTTPepilog()
 {
   if (!sendCommandWaitForOK_P(PSTR("AT+HTTPTERM"))) {
     // This is an error, but we can still return success.
@@ -1447,7 +1450,7 @@ bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *
     goto ending;
   }
 
-  if (!doHTTPGET1(apn, apnuser, apnpwd)) {
+  if (!doHTTPprolog(apn, apnuser, apnpwd)) {
     goto cmd_error;
   }
 
@@ -1456,7 +1459,7 @@ bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *
   }
 
   retval = true;
-  doHTTPGET3();
+  doHTTPepilog();
   goto ending;
 
 cmd_error:
@@ -1476,7 +1479,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
     goto ending;
   }
 
-  if (!doHTTPGET1(apn, apnuser, apnpwd)) {
+  if (!doHTTPprolog(apn, apnuser, apnpwd)) {
     goto cmd_error;
   }
 
@@ -1485,7 +1488,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
   }
 
   retval = true;
-  doHTTPGET3();
+  doHTTPepilog();
   goto ending;
 
 cmd_error:

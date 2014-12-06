@@ -51,10 +51,10 @@ public:
   bool doHTTPGET(const char *apn, const String & url, char *buffer, size_t len);
   bool doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd,
       const char *url, char *buffer, size_t len);
-  bool doHTTPGET1(const char *apn);
-  bool doHTTPGET1(const char *apn, const char *apnuser, const char *apnpwd);
+  bool doHTTPprolog(const char *apn);
+  bool doHTTPprolog(const char *apn, const char *apnuser, const char *apnpwd);
   bool doHTTPGET2(const char *url, char *buffer, size_t len);
-  void doHTTPGET3();
+  void doHTTPepilog();
 
   bool openTCP(const char *apn, const char *server, int port, bool transMode=false);
   bool openTCP(const char *apn, const char *apnuser, const char *apnpwd,
