@@ -1302,7 +1302,7 @@ ending:
  * HTTPDATA
  * HTTPACTION
  */
-bool GPRSbeeClass::doHTTPPOST2(const char *url, const char *buffer, size_t len)
+bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char *buffer, size_t len)
 {
   uint32_t ts_max;
   bool retval = false;
@@ -1345,10 +1345,19 @@ bool GPRSbeeClass::doHTTPPOST2(const char *url, const char *buffer, size_t len)
   // <StatusCode> 200
   // <DataLen> ??
   ts_max = millis() + 20000;
-  if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
-    // TODO Check for StatusCode 200
-    // TODO Check for DataLen
-    retval = true;
+  if (waitForMessage_P(PSTR("+HTTPACTION:1,"), ts_max)) {
+    const char *ptr = _SIM900_buffer + 14;
+    char *bufend;
+    uint8_t replycode = strtoul(ptr, &bufend, 0);
+    if (bufend == ptr) {
+      // Invalid number
+      goto ending;
+    }
+    if (replycode == 200) {
+      retval = true;
+    } else {
+      // Everything else is considered an error
+    }
   }
 
   // All is well if we get here.
@@ -1364,7 +1373,7 @@ ending:
  * HTTPACTION
  * HTTPREAD
  */
-bool GPRSbeeClass::doHTTPGET2(const char *url, char *buffer, size_t len)
+bool GPRSbeeClass::doHTTPGETmiddle(const char *url, char *buffer, size_t len)
 {
   uint32_t ts_max;
   size_t getLength = 0;
@@ -1454,7 +1463,7 @@ bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *
     goto cmd_error;
   }
 
-  if (!doHTTPPOST2(url, buffer, len)) {
+  if (!doHTTPPOSTmiddle(url, buffer, len)) {
     goto cmd_error;
   }
 
@@ -1483,7 +1492,7 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *a
     goto cmd_error;
   }
 
-  if (!doHTTPGET2(url, buffer, len)) {
+  if (!doHTTPGETmiddle(url, buffer, len)) {
     goto cmd_error;
   }
 

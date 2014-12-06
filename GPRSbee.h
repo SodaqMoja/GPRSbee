@@ -43,17 +43,19 @@ public:
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
   bool doHTTPPOST(const char *apn, const char *url, const char *buffer, size_t len);
+  bool doHTTPPOST(const char *apn, const String & url, const char *buffer, size_t len);
   bool doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
       const char *url, const char *buffer, size_t len);
-  bool doHTTPPOST2(const char *url, const char *buffer, size_t len);
+  bool doHTTPPOSTmiddle(const char *url, const char *buffer, size_t len);
 
   bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
   bool doHTTPGET(const char *apn, const String & url, char *buffer, size_t len);
   bool doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd,
       const char *url, char *buffer, size_t len);
+  bool doHTTPGETmiddle(const char *url, char *buffer, size_t len);
+
   bool doHTTPprolog(const char *apn);
   bool doHTTPprolog(const char *apn, const char *apnuser, const char *apnpwd);
-  bool doHTTPGET2(const char *url, char *buffer, size_t len);
   void doHTTPepilog();
 
   bool openTCP(const char *apn, const char *server, int port, bool transMode=false);
