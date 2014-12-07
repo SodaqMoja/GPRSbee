@@ -109,15 +109,20 @@ private:
   bool waitForMessage_P(const char *msg, uint32_t ts_max);
   int waitForMessages(const char *msgs[], size_t nrMsgs, uint32_t ts_max);
   bool waitForPrompt(const char *prompt, uint32_t ts_max);
-  void sendCommandPrepare();
-  void sendCommandPartial(const char *cmd);
-  void sendCommandPartial_P(const char *cmd);
-  void sendCommandNoPrepare(const char *cmd);
-  void sendCommandNoPrepare_P(const char *cmd);
+
+  void sendCommandProlog();
+  void sendCommandAdd(char c);
+  void sendCommandAdd(int i);
+  void sendCommandAdd(const char *cmd);
+  void sendCommandAdd_P(const char *cmd);
+  void sendCommandEpilog();
+
   void sendCommand(const char *cmd);
   void sendCommand_P(const char *cmd);
+
   bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=4000);
   bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=4000);
+
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
   bool getStrValue(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max);
   bool getStrValue(const char *cmd, char * str, size_t size, uint32_t ts_max);

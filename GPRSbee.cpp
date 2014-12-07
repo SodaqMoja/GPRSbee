@@ -411,43 +411,60 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
   return true;
 }
 
-void GPRSbeeClass::sendCommandPrepare()
+/*
+ * \brief Prepare for a new command
+ */
+void GPRSbeeClass::sendCommandProlog()
 {
   flushInput();
   mydelay(50);
   diagPrint(F(">> "));
 }
-void GPRSbeeClass::sendCommandPartial(const char *cmd)
+
+/*
+ * \brief Add a part of the command (don't yet send the final CR)
+ */
+void GPRSbeeClass::sendCommandAdd(char c)
+{
+  diagPrint(c);
+  _myStream->print(c);
+}
+void GPRSbeeClass::sendCommandAdd(int i)
+{
+  diagPrint(i);
+  _myStream->print(i);
+}
+void GPRSbeeClass::sendCommandAdd(const char *cmd)
 {
   diagPrint(cmd);
   _myStream->print(cmd);
 }
-void GPRSbeeClass::sendCommandPartial_P(const char *cmd)
+void GPRSbeeClass::sendCommandAdd_P(const char *cmd)
 {
   diagPrint(reinterpret_cast<const __FlashStringHelper *>(cmd));
   _myStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
 }
-void GPRSbeeClass::sendCommandNoPrepare(const char *cmd)
+
+/*
+ * \brief Send the final CR of the command
+ */
+void GPRSbeeClass::sendCommandEpilog()
 {
-  sendCommandPartial(cmd);
   diagPrintLn();
   _myStream->print('\r');
 }
-void GPRSbeeClass::sendCommandNoPrepare_P(const char *cmd)
-{
-  sendCommandPartial_P(cmd);
-  diagPrintLn();
-  _myStream->print('\r');
-}
+
 void GPRSbeeClass::sendCommand(const char *cmd)
 {
-  sendCommandPrepare();
-  sendCommandNoPrepare(cmd);
+  sendCommandProlog();
+  sendCommandAdd(cmd);
+  sendCommandEpilog();
 }
 void GPRSbeeClass::sendCommand_P(const char *cmd)
 {
-  sendCommandPrepare();
-  sendCommandNoPrepare_P(cmd);
+  sendCommandProlog();
+  sendCommandAdd_P(cmd);
+  sendCommandEpilog();
 }
 
 /*
@@ -1309,19 +1326,21 @@ bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char *buffer, size_t 
   char num_bytes[16];
 
   // set http param URL value
-  sendCommandPrepare();
-  sendCommandPartial_P(PSTR("AT+HTTPPARA=\"URL\",\""));
-  sendCommandPartial(url);
-  sendCommandNoPrepare_P(PSTR("\""));
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPPARA=\"URL\",\""));
+  sendCommandAdd(url);
+  sendCommandAdd_P(PSTR("\""));
+  sendCommandEpilog();
   if (!waitForOK()) {
     goto ending;
   }
 
-  sendCommandPrepare();
-  sendCommandPartial_P(PSTR("AT+HTTPDATA="));
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPDATA="));
   itoa(len, num_bytes, 10);
-  sendCommandPartial(num_bytes);
-  sendCommandNoPrepare_P(PSTR(",10000"));
+  sendCommandAdd(num_bytes);
+  sendCommandAdd_P(PSTR(",10000"));
+  sendCommandEpilog();
   ts_max = millis() + 4000;
   if (!waitForMessage_P(PSTR("DOWNLOAD"), ts_max)) {
     goto ending;
@@ -1381,10 +1400,11 @@ bool GPRSbeeClass::doHTTPGETmiddle(const char *url, char *buffer, size_t len)
   bool retval = false;
 
   // set http param URL value
-  sendCommandPrepare();
-  sendCommandPartial_P(PSTR("AT+HTTPPARA=\"URL\",\""));
-  sendCommandPartial(url);
-  sendCommandNoPrepare_P(PSTR("\""));
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPPARA=\"URL\",\""));
+  sendCommandAdd(url);
+  sendCommandAdd('"');
+  sendCommandEpilog();
   if (!waitForOK()) {
     goto ending;
   }
