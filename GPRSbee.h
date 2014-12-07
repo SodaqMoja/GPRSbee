@@ -54,6 +54,9 @@ public:
       const char *url, char *buffer, size_t len);
   bool doHTTPGETmiddle(const char *url, char *buffer, size_t len);
 
+  bool doHTTPREAD(char *buffer, size_t len);
+  bool doHTTPACTION(char num);
+
   bool doHTTPprolog(const char *apn);
   bool doHTTPprolog(const char *apn, const char *apnuser, const char *apnpwd);
   void doHTTPepilog();

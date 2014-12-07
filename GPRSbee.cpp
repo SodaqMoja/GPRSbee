@@ -1263,55 +1263,6 @@ bool GPRSbeeClass::doHTTPGET(const char *apn, const String & url, char *buffer, 
   return doHTTPGET(apn, 0, 0, url.c_str(), buffer, len);
 }
 
-bool GPRSbeeClass::doHTTPprolog(const char *apn)
-{
-  return doHTTPprolog(apn, 0, 0);
-}
-
-bool GPRSbeeClass::doHTTPprolog(const char *apn, const char *apnuser, const char *apnpwd)
-{
-  bool retval = false;
-
-  // Suppress echoing
-  switchEchoOff();
-
-  // Wait for signal quality
-  if (!waitForSignalQuality()) {
-    goto ending;
-  }
-
-  // Wait for CREG
-  if (!waitForCREG()) {
-    goto ending;
-  }
-
-  // Attach to GPRS service
-  // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
-    goto ending;
-  }
-
-  if (!setBearerParms(apn, apnuser, apnpwd)) {
-    goto ending;
-  }
-
-  // initialize http service
-  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPINIT"))) {
-    goto ending;
-  }
-
-  // set http param CID value
-  // FIXME Do we really need this?
-  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPPARA=\"CID\",1"))) {
-    goto ending;
-  }
-
-  retval = true;
-
-ending:
-  return retval;
-}
-
 /*
  * The middle part of the whole HTTP POST
  *
@@ -1394,9 +1345,6 @@ ending:
  */
 bool GPRSbeeClass::doHTTPGETmiddle(const char *url, char *buffer, size_t len)
 {
-  uint32_t ts_max;
-  size_t getLength = 0;
-  int i;
   bool retval = false;
 
   // set http param URL value
@@ -1409,21 +1357,88 @@ bool GPRSbeeClass::doHTTPGETmiddle(const char *url, char *buffer, size_t len)
     goto ending;
   }
 
-  // set http action type 0 = GET, 1 = POST, 2 = HEAD
-  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPACTION=0"))) {
+  if (!doHTTPACTION(0)) {
     goto ending;
-  }
-  // Now we're expecting something like this: +HTTPACTION: <Method>,<StatusCode>,<DataLen>
-  // <Method> 0
-  // <StatusCode> 200
-  // <DataLen> ??
-  ts_max = millis() + 8000;
-  if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
-    // TODO Check for StatusCode 200
-    // TODO Check for DataLen
   }
 
   // Read all data
+  if (!doHTTPREAD(buffer, len)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+  return retval;
+}
+
+bool GPRSbeeClass::doHTTPprolog(const char *apn)
+{
+  return doHTTPprolog(apn, 0, 0);
+}
+
+bool GPRSbeeClass::doHTTPprolog(const char *apn, const char *apnuser, const char *apnpwd)
+{
+  bool retval = false;
+
+  // Suppress echoing
+  switchEchoOff();
+
+  // Wait for signal quality
+  if (!waitForSignalQuality()) {
+    goto ending;
+  }
+
+  // Wait for CREG
+  if (!waitForCREG()) {
+    goto ending;
+  }
+
+  // Attach to GPRS service
+  // We need a longer timeout than the normal waitForOK
+  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+    goto ending;
+  }
+
+  if (!setBearerParms(apn, apnuser, apnpwd)) {
+    goto ending;
+  }
+
+  // initialize http service
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPINIT"))) {
+    goto ending;
+  }
+
+  // set http param CID value
+  // FIXME Do we really need this?
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPPARA=\"CID\",1"))) {
+    goto ending;
+  }
+
+  retval = true;
+
+ending:
+  return retval;
+}
+
+void GPRSbeeClass::doHTTPepilog()
+{
+  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPTERM"))) {
+    // This is an error, but we can still return success.
+  }
+}
+
+/*
+ * \brief Read the data from a GET or POST
+ */
+bool GPRSbeeClass::doHTTPREAD(char *buffer, size_t len)
+{
+  uint32_t ts_max;
+  size_t getLength = 0;
+  int i;
+  bool retval = false;
+
   // Expect
   //   +HTTPREAD:<date_len>
   //   <data>
@@ -1463,11 +1478,44 @@ ending:
   return retval;
 }
 
-void GPRSbeeClass::doHTTPepilog()
+bool GPRSbeeClass::doHTTPACTION(char num)
 {
-  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPTERM"))) {
-    // This is an error, but we can still return success.
+  uint32_t ts_max;
+  bool retval = false;
+
+  // set http action type 0 = GET, 1 = POST, 2 = HEAD
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+HTTPACTION="));
+  sendCommandAdd((int)num);
+  sendCommandEpilog();
+  if (!waitForOK()) {
+    goto ending;
   }
+  // Now we're expecting something like this: +HTTPACTION: <Method>,<StatusCode>,<DataLen>
+  // <Method> 0
+  // <StatusCode> 200
+  // <DataLen> ??
+  ts_max = millis() + 20000;
+  if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
+    // The 14 is the length of "+HTTPACTION:1,", i.e. WITH the digit and the comma
+    const char *ptr = _SIM900_buffer + 14;
+    char *bufend;
+    uint8_t replycode = strtoul(ptr, &bufend, 0);
+    if (bufend == ptr) {
+      // Invalid number
+      goto ending;
+    }
+    if (replycode == 200) {
+      retval = true;
+    } else {
+      // Everything else is considered an error
+    }
+  }
+
+  // All is well if we get here.
+
+ending:
+  return retval;
 }
 
 bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
