@@ -1248,21 +1248,6 @@ ending:
   return retval;
 }
 
-bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *url, const char *buffer, size_t len)
-{
-  return doHTTPPOST(apn, 0, 0, url, buffer, len);
-}
-
-bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, size_t len)
-{
-  return doHTTPGET(apn, 0, 0, url, buffer, len);
-}
-
-bool GPRSbeeClass::doHTTPGET(const char *apn, const String & url, char *buffer, size_t len)
-{
-  return doHTTPGET(apn, 0, 0, url.c_str(), buffer, len);
-}
-
 /*
  * The middle part of the whole HTTP POST
  *
@@ -1527,6 +1512,11 @@ ending:
   return retval;
 }
 
+bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *url, const char *buffer, size_t len)
+{
+  return doHTTPPOST(apn, 0, 0, url, buffer, len);
+}
+
 bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
     const char *url, const char *buffer, size_t len)
 {
@@ -1554,6 +1544,16 @@ cmd_error:
 ending:
   off();
   return retval;
+}
+
+bool GPRSbeeClass::doHTTPGET(const char *apn, const char *url, char *buffer, size_t len)
+{
+  return doHTTPGET(apn, 0, 0, url, buffer, len);
+}
+
+bool GPRSbeeClass::doHTTPGET(const char *apn, const String & url, char *buffer, size_t len)
+{
+  return doHTTPGET(apn, 0, 0, url.c_str(), buffer, len);
 }
 
 bool GPRSbeeClass::doHTTPGET(const char *apn, const char *apnuser, const char *apnpwd,
