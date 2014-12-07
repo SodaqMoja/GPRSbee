@@ -1512,13 +1512,13 @@ ending:
   return retval;
 }
 
-bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *url, const char *buffer, size_t len)
+bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *url, const char *postdata, size_t pdlen)
 {
-  return doHTTPPOST(apn, 0, 0, url, buffer, len);
+  return doHTTPPOST(apn, 0, 0, url, postdata, pdlen);
 }
 
 bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
-    const char *url, const char *buffer, size_t len)
+    const char *url, const char *postdata, size_t pdlen)
 {
   bool retval = false;
 
@@ -1530,7 +1530,43 @@ bool GPRSbeeClass::doHTTPPOST(const char *apn, const char *apnuser, const char *
     goto cmd_error;
   }
 
-  if (!doHTTPPOSTmiddle(url, buffer, len)) {
+  if (!doHTTPPOSTmiddle(url, postdata, pdlen)) {
+    goto cmd_error;
+  }
+
+  retval = true;
+  doHTTPepilog();
+  goto ending;
+
+cmd_error:
+  diagPrintLn(F("doHTTPGET failed!"));
+
+ending:
+  off();
+  return retval;
+}
+
+
+bool GPRSbeeClass::doHTTPPOSTWithReply(const char *apn,
+    const char *url, const char *postdata, size_t pdlen, char *buffer, size_t len)
+{
+  return doHTTPPOSTWithReply(apn, 0, 0, url, postdata, pdlen, buffer, len);
+}
+
+bool GPRSbeeClass::doHTTPPOSTWithReply(const char *apn, const char *apnuser, const char *apnpwd,
+    const char *url, const char *postdata, size_t pdlen, char *buffer, size_t len)
+{
+  bool retval = false;
+
+  if (!on()) {
+    goto ending;
+  }
+
+  if (!doHTTPprolog(apn, apnuser, apnpwd)) {
+    goto cmd_error;
+  }
+
+  if (!doHTTPPOSTmiddleWithReply(url, postdata, pdlen, buffer, len)) {
     goto cmd_error;
   }
 
