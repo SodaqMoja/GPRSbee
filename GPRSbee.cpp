@@ -1280,7 +1280,7 @@ bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char *buffer, size_t 
   sendCommandProlog();
   sendCommandAdd_P(PSTR("AT+HTTPPARA=\"URL\",\""));
   sendCommandAdd(url);
-  sendCommandAdd_P(PSTR("\""));
+  sendCommandAdd('"');
   sendCommandEpilog();
   if (!waitForOK()) {
     goto ending;
@@ -1306,31 +1306,12 @@ bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char *buffer, size_t 
     goto ending;
   }
 
-  // set http action type 0 = GET, 1 = POST, 2 = HEAD
-  if (!sendCommandWaitForOK_P(PSTR("AT+HTTPACTION=1"))) {
+  if (!doHTTPACTION(1)) {
     goto ending;
-  }
-  // Now we're expecting something like this: +HTTPACTION: <Method>,<StatusCode>,<DataLen>
-  // <Method> 0
-  // <StatusCode> 200
-  // <DataLen> ??
-  ts_max = millis() + 20000;
-  if (waitForMessage_P(PSTR("+HTTPACTION:1,"), ts_max)) {
-    const char *ptr = _SIM900_buffer + 14;
-    char *bufend;
-    uint8_t replycode = strtoul(ptr, &bufend, 0);
-    if (bufend == ptr) {
-      // Invalid number
-      goto ending;
-    }
-    if (replycode == 200) {
-      retval = true;
-    } else {
-      // Everything else is considered an error
-    }
   }
 
   // All is well if we get here.
+  retval = true;
 
 ending:
   return retval;
