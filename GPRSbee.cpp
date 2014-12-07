@@ -1318,6 +1318,34 @@ ending:
 }
 
 /*
+ * The middle part of the whole HTTP POST, with a READ
+ *
+ * HTTPPARA with the URL
+ * HTTPDATA
+ * HTTPACTION
+ * HTTPREAD
+ */
+bool GPRSbeeClass::doHTTPPOSTmiddleWithReply(const char *url, const char *postdata, size_t pdlen, char *buffer, size_t len)
+{
+  bool retval = false;;
+
+  if (!doHTTPPOSTmiddle(url, postdata, pdlen)) {
+    goto ending;
+  }
+
+  // Read all data
+  if (!doHTTPREAD(buffer, len)) {
+    goto ending;
+  }
+
+  // All is well if we get here.
+  retval = true;
+
+ending:
+    return retval;
+}
+
+/*
  * The middle part of the whole HTTP GET
  *
  * HTTPPARA with the URL

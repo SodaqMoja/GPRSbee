@@ -42,11 +42,17 @@ public:
 
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
-  bool doHTTPPOST(const char *apn, const char *url, const char *buffer, size_t len);
-  bool doHTTPPOST(const char *apn, const String & url, const char *buffer, size_t len);
+  bool doHTTPPOST(const char *apn, const char *url, const char *postdata, size_t pdlen);
+  bool doHTTPPOST(const char *apn, const String & url, const char *postdata, size_t pdlen);
   bool doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
-      const char *url, const char *buffer, size_t len);
-  bool doHTTPPOSTmiddle(const char *url, const char *buffer, size_t len);
+      const char *url, const char *postdata, size_t pdlen);
+  bool doHTTPPOSTmiddle(const char *url, const char *postdata, size_t pdlen);
+  bool doHTTPPOSTmiddleWithReply(const char *url, const char *postdata, size_t pdlen, char *buffer, size_t len);
+
+  bool doHTTPPOSTWithReply(const char *apn, const char *url, const char *postdata, size_t pdlen, char *buffer, size_t len);
+  bool doHTTPPOSTWithReply(const char *apn, const String & url, const char *postdata, size_t pdlen, char *buffer, size_t len);
+  bool doHTTPPOSTWithReply(const char *apn, const char *apnuser, const char *apnpwd,
+      const char *url, const char *postdata, size_t pdlen, char *buffer, size_t len);
 
   bool doHTTPGET(const char *apn, const char *url, char *buffer, size_t len);
   bool doHTTPGET(const char *apn, const String & url, char *buffer, size_t len);
