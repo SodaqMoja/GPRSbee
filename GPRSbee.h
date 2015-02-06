@@ -1,7 +1,7 @@
 #ifndef GPRSBEE_H_
 #define GPRSBEE_H_
 /*
- * Copyright (c) 2013-2014 Kees Bakker.  All rights reserved.
+ * Copyright (c) 2013-2015 Kees Bakker.  All rights reserved.
  *
  * This file is part of GPRSbee.
  *
@@ -32,11 +32,10 @@ class GPRSbeeClass
 {
 public:
   void init(Stream &stream, int ctsPin, int powerPin);
+  void initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin);
   bool on();
   bool off();
-#if defined(__AVR_ATmega1284P__)
-  void setPowerSwitchedOnOff(bool x) { _onoffMethod = x; }
-#endif
+  void setPowerSwitchedOnOff(bool x) { _onoffMethod = onoff_mbili_jp2; }
   void setDiag(Stream &stream) { _diagStream = &stream; }
   void setDiag(Stream *stream) { _diagStream = stream; }
 
@@ -102,10 +101,13 @@ public:
   void disableLTS();
 
 private:
+  void initProlog(Stream &stream);
   void onToggle();
   void offToggle();
-  void onPowerSwitch();
-  void offPowerSwitch();
+  void onSwitchMbiliJP2();
+  void offSwitchMbiliJP2();
+  void onSwitchNdogoSIM800();
+  void offSwitchNdogoSIM800();
   bool isOn();
   void toggle();
   bool isAlive();
@@ -145,20 +147,24 @@ private:
   bool sendFTPdata_low(uint8_t *buffer, size_t size);
   bool sendFTPdata_low(uint8_t (*read)(), size_t size);
 
+  enum onoffKind {
+    onoff_toggle,
+    onoff_mbili_jp2,
+    onoff_ndogo_sim800,
+  };
 #define SIM900_BUFLEN 64
   char _SIM900_buffer[SIM900_BUFLEN + 1];           // +1 for the 0 byte
   int _SIM900_bufcnt;
   Stream *_myStream;
   Stream *_diagStream;
-  int _ctsPin;
-  int _powerPin;
+  int8_t _statusPin;
+  int8_t _powerPin;
+  int8_t _vbatPin;
   int _minSignalQuality;
   size_t _ftpMaxLength;
   bool _transMode;
   bool _echoOff;
-#if defined(__AVR_ATmega1284P__)
-  bool _onoffMethod;
-#endif
+  enum onoffKind _onoffMethod;
 };
 
 extern GPRSbeeClass gprsbee;

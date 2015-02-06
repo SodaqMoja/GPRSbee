@@ -49,36 +49,95 @@ static inline void mydelay(unsigned long nrMillis)
   delay(nrMillis);
 }
 
+/*!
+ * \brief Initialize the instance
+ * \param stream - the Stream instance to use to communicate with the SIMx00
+ * \param ctsPin - the pin that is connected to the Bee CTS
+ * \param powerPin - the pin that is connected to the Bee DTR (used to toggle power of the SIM900)
+ *
+ * This function does the work that a constructor could have done. But
+ * in the Arduino world things are done differently.
+ * The pinmode of the pins are setup. The output pins get their default
+ * value.
+ *
+ * There are a few different methods to switch on the SIM900.
+ * 1) the "old fashioned" method is to just toggle the /DTR port of the Bee slot
+ * 2) the SODAQ Mbili has a switched power (JP2) that can be jumpered to power the GPRSbee
+ * and the same digital output connected to the /DTR of the Bee slot
+ * 3) the SODAQ Ndogo has a switched VBAT to power the SIM800 and a digital pin to
+ * toggle the PWRKEY of the SIM800
+ */
 void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin)
+{
+  initProlog(stream);
+
+  if (powerPin >= 0) {
+    _powerPin = powerPin;
+    // First write the output value, and only then set the output mode.
+    digitalWrite(_powerPin, LOW);
+    pinMode(_powerPin, OUTPUT);
+  }
+
+  if (ctsPin >= 0) {
+    _statusPin = ctsPin;
+    pinMode(_statusPin, INPUT);
+  }
+}
+
+void GPRSbeeClass::initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin)
+{
+  initProlog(stream);
+  _onoffMethod = onoff_ndogo_sim800;
+
+  if (pwrkeyPin >= 0) {
+    _powerPin = pwrkeyPin;
+    // First write the output value, and only then set the output mode.
+    digitalWrite(_powerPin, LOW);
+    pinMode(_powerPin, OUTPUT);
+  }
+
+  if (vbatPin >= 0) {
+    _vbatPin = vbatPin;
+    // First write the output value, and only then set the output mode.
+    digitalWrite(_vbatPin, LOW);
+    pinMode(_vbatPin, OUTPUT);
+  }
+
+  if (statusPin >= 0) {
+    _statusPin = statusPin;
+    pinMode(_statusPin, INPUT);
+  }
+}
+
+void GPRSbeeClass::initProlog(Stream &stream)
 {
   _myStream = &stream;
   _diagStream = 0;
-  _ctsPin = ctsPin;
-  _powerPin = powerPin;
+  _statusPin = -1;
+  _powerPin = -1;
+  _vbatPin = -1;
   _minSignalQuality = 10;
   _ftpMaxLength = 0;
   _transMode = false;
   _echoOff = false;
-#if defined(__AVR_ATmega1284P__)
-  _onoffMethod = false;
-#endif
-
-  digitalWrite(_powerPin, LOW);
-  pinMode(_powerPin, OUTPUT);
-
-  pinMode(_ctsPin, INPUT);
+  _onoffMethod = onoff_toggle;
 }
 
 bool GPRSbeeClass::on()
 {
-#if defined(__AVR_ATmega1284P__)
-  if (_onoffMethod) {
-    onPowerSwitch();
-    goto end;
+  switch (_onoffMethod) {
+  case onoff_mbili_jp2:
+    onSwitchMbiliJP2();
+    break;
+  case onoff_ndogo_sim800:
+    onSwitchNdogoSIM800();
+    break;
+  default:
+    // The old-fashioned way, just toggle
+    onToggle();
+    break;
   }
-#endif
-  onToggle();
-end:
+
   // Make sure it responds
   if (!isAlive()) {
     // Oh, no answer, maybe it's off
@@ -89,14 +148,19 @@ end:
 
 bool GPRSbeeClass::off()
 {
-#if defined(__AVR_ATmega1284P__)
-  if (_onoffMethod) {
-    offPowerSwitch();
-    goto end;
+  switch (_onoffMethod) {
+  case onoff_mbili_jp2:
+    offSwitchMbiliJP2();
+    break;
+  case onoff_ndogo_sim800:
+    offSwitchNdogoSIM800();
+    break;
+  default:
+    // The old-fashioned way, just toggle
+    offToggle();
+    break;
   }
-#endif
-  offToggle();
-end:
+
   _echoOff = false;
   return !isOn();
 }
@@ -134,8 +198,8 @@ void GPRSbeeClass::offToggle()
   }
 }
 
-/*
- * Switch GPRSbee on via the switched power connection of SODAQ Mbili (JP2)
+/*!
+ * \brief Switch GPRSbee on via the switched power connection of SODAQ Mbili (JP2)
  *
  * The SODAQ Mbili has an extra connector, JP2, which is switched via port D23.
  * This JP2 must be connected to one of the two power connectors of GPRSbee
@@ -144,7 +208,7 @@ void GPRSbeeClass::offToggle()
  * To use this feature you must also set the OnOff mode like this:
  *     gprsbee.setPowerSwitchedOnOff(true);
  */
-void GPRSbeeClass::onPowerSwitch()
+void GPRSbeeClass::onSwitchMbiliJP2()
 {
   diagPrintLn(F("on powerPin"));
   digitalWrite(_powerPin, HIGH);
@@ -154,7 +218,10 @@ void GPRSbeeClass::onPowerSwitch()
   }
 }
 
-void GPRSbeeClass::offPowerSwitch()
+/*!
+ * \brief Switch GPRSbee of via the switched power connection of SODAQ Mbili (JP2)
+ */
+void GPRSbeeClass::offSwitchMbiliJP2()
 {
   diagPrintLn(F("off powerPin"));
   digitalWrite(_powerPin, LOW);
@@ -163,10 +230,46 @@ void GPRSbeeClass::offPowerSwitch()
   mydelay(500);
 }
 
+/*!
+ * \brief Switch SIM800 on via SIM800VBAT and SIM800PWRKEY
+ *
+ * Although the documentation says we must toggle the PWRKEY we found
+ * out that we can simply set PWRKEY HIGH before switching on the power.
+ */
+void GPRSbeeClass::onSwitchNdogoSIM800()
+{
+  diagPrintLn(F("on powerPin, vbatPin"));
+  // First PWRKEY HIGH
+  digitalWrite(_powerPin, HIGH);
+  // Wait a little
+  // TODO Figure out if this is really needed
+  delay(2);
+  digitalWrite(_vbatPin, HIGH);
+  // Should be instant
+  // Let's wait, but how long?
+  mydelay(2500);
+  digitalWrite(_powerPin, LOW);
+}
+
+/*!
+ * brief Switch SIM800 off via SIM800VBAT and SIM800PWRKEY
+ */
+void GPRSbeeClass::offSwitchNdogoSIM800()
+{
+  diagPrintLn(F("off vbatPin"));
+  // TODO We could do a toggle and let the device do a
+  // graceful shutdown.
+  // offToggle()
+  digitalWrite(_vbatPin, LOW);
+  // Should be instant
+  // Let's wait a little, but not too long
+  mydelay(50);
+}
+
 bool GPRSbeeClass::isOn()
 {
-  bool XBEE_cts = digitalRead(_ctsPin);
-  return XBEE_cts;
+  bool status = digitalRead(_statusPin);
+  return status;
 }
 
 void GPRSbeeClass::toggle()
