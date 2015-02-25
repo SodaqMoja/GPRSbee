@@ -96,7 +96,13 @@ public:
   bool getCCLK(char *buffer, size_t buflen);
   bool getCSPN(char *buffer, size_t buflen);
   bool getCGID(char *buffer, size_t buflen);
+  bool setCIURC(uint8_t value);
+  bool getCIURC(char *buffer, size_t buflen);
+  bool setCFUN(uint8_t value);
+  bool getCFUN(char *buffer, size_t buflen);
 
+  void enableCIURC();
+  void disableCIURC();
   void enableLTS();
   void disableLTS();
 

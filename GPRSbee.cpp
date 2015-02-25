@@ -1852,6 +1852,48 @@ bool GPRSbeeClass::getCGID(char *buffer, size_t buflen)
   return getStrValue("AT+CGID", "+GID:", buffer, buflen, ts_max);
 }
 
+bool GPRSbeeClass::setCIURC(uint8_t value)
+{
+  switchEchoOff();
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+CIURC="));
+  sendCommandAdd(value);
+  sendCommandEpilog();
+  return waitForOK();
+}
+
+bool GPRSbeeClass::getCIURC(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+CIURC?", "+CIURC:", buffer, buflen, ts_max);
+}
+
+/*
+ * \brief Set the AT+CFUN value (Set Phone Functionality)
+ *
+ * Allowed values are
+ * - 0 Minimum functionality
+ * - 1 Full functionality (Default)
+ * - 4 Disable phone both transmit and receive RF circuits
+ */
+bool GPRSbeeClass::setCFUN(uint8_t value)
+{
+  switchEchoOff();
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+CFUN="));
+  sendCommandAdd(value);
+  sendCommandEpilog();
+  return waitForOK();
+}
+
+bool GPRSbeeClass::getCFUN(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 4000;
+  return getStrValue("AT+CFUN?", "+CFUN:", buffer, buflen, ts_max);
+}
+
 void GPRSbeeClass::enableLTS()
 {
   if (!sendCommandWaitForOK_P(PSTR("AT+CLTS=1"), 6000)) {
@@ -1861,5 +1903,17 @@ void GPRSbeeClass::enableLTS()
 void GPRSbeeClass::disableLTS()
 {
   if (!sendCommandWaitForOK_P(PSTR("AT+CLTS=0"), 6000)) {
+  }
+}
+
+void GPRSbeeClass::enableCIURC()
+{
+  if (!sendCommandWaitForOK_P(PSTR("AT+CIURC=1"), 6000)) {
+  }
+}
+
+void GPRSbeeClass::disableCIURC()
+{
+  if (!sendCommandWaitForOK_P(PSTR("AT+CIURC=0"), 6000)) {
   }
 }
