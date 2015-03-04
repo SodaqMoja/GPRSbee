@@ -664,6 +664,10 @@ bool GPRSbeeClass::getStrValue(const char *cmd, const char *reply, char * str, s
 
   if (waitForMessage(reply, ts_max)) {
     const char *ptr = _SIM900_buffer + strlen(reply);
+    // Strip leading white space
+    while (*ptr != '\0' && *ptr == ' ') {
+      ++ptr;
+    }
     strncpy(str, ptr, size - 1);
     // Wait for "OK"
     return waitForOK();
@@ -677,6 +681,10 @@ bool GPRSbeeClass::getStrValue_P(const char *cmd, const char *reply, char * str,
 
   if (waitForMessage_P(reply, ts_max)) {
     const char *ptr = _SIM900_buffer + strlen_P(reply);
+    // Strip leading white space
+    while (*ptr != '\0' && *ptr == ' ') {
+      ++ptr;
+    }
     strncpy(str, ptr, size - 1);
     // Wait for "OK"
     return waitForOK();
