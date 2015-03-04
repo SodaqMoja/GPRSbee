@@ -1654,8 +1654,16 @@ bool GPRSbeeClass::doHTTPACTION(char num)
   // <DataLen> ??
   ts_max = millis() + 20000;
   if (waitForMessage_P(PSTR("+HTTPACTION:"), ts_max)) {
-    // The 14 is the length of "+HTTPACTION:1,", i.e. WITH the digit and the comma
-    const char *ptr = _SIM900_buffer + 14;
+    // SIM900 responds with: "+HTTPACTION:1,200,11"
+    // SIM800 responds with: "+HTTPACTION: 1,200,11"
+    // The 12 is the length of "+HTTPACTION:"
+    // We then have to skip the digit and the comma
+    const char *ptr = _SIM900_buffer + 12;
+    while (*ptr != '\0' && *ptr == ' ') {
+      ++ptr;
+    }
+    ++ptr;              // The digit
+    ++ptr;              // The comma
     char *bufend;
     uint8_t replycode = strtoul(ptr, &bufend, 0);
     if (bufend == ptr) {
