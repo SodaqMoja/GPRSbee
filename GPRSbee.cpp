@@ -583,6 +583,11 @@ bool GPRSbeeClass::sendCommandWaitForOK(const char *cmd, uint16_t timeout)
   sendCommand(cmd);
   return waitForOK(timeout);
 }
+bool GPRSbeeClass::sendCommandWaitForOK(const String & cmd, uint16_t timeout)
+{
+  sendCommand(cmd.c_str());
+  return waitForOK(timeout);
+}
 bool GPRSbeeClass::sendCommandWaitForOK_P(const char *cmd, uint16_t timeout)
 {
   sendCommand_P(cmd);

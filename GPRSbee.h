@@ -151,6 +151,10 @@ public:
   void enableLTS();
   void disableLTS();
 
+  bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=4000);
+  bool sendCommandWaitForOK(const String & cmd, uint16_t timeout=4000);
+  bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=4000);
+
 private:
   void initProlog(Stream &stream);
   void onToggle();
@@ -181,9 +185,6 @@ private:
 
   void sendCommand(const char *cmd);
   void sendCommand_P(const char *cmd);
-
-  bool sendCommandWaitForOK(const char *cmd, uint16_t timeout=4000);
-  bool sendCommandWaitForOK_P(const char *cmd, uint16_t timeout=4000);
 
   bool getIntValue(const char *cmd, const char *reply, int * value, uint32_t ts_max);
   bool getIntValue_P(const char *cmd, const char *reply, int * value, uint32_t ts_max);
