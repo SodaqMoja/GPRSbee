@@ -621,8 +621,33 @@ bool GPRSbeeClass::getIntValue(const char *cmd, const char *reply, int * value, 
   return false;
 }
 
+bool GPRSbeeClass::getIntValue_P(const char *cmd, const char *reply, int * value, uint32_t ts_max)
+{
+  sendCommand_P(cmd);
+
+  // First we expect the reply
+  if (waitForMessage_P(reply, ts_max)) {
+    const char *ptr = _SIM900_buffer + strlen_P(reply);
+    char *bufend;
+    *value = strtoul(ptr, &bufend, 0);
+    if (bufend == ptr) {
+      // Invalid number
+      return false;
+    }
+    // Wait for "OK"
+    return waitForOK();
+  }
+  return false;
+}
+
 /*
- * \brief Get SIM900 string value
+ * \brief Get SIM900 string value with the result of an AT command
+ *
+ *\param cmd    the AT command
+ *\param reply  the prefix of the expected reply (this is stripped from the result
+ *\param str    a pointer to where the result must be copied
+ *\param size   the length of the result buffer
+ *\param ts_max the maximum ts to wait for the reply
  *
  * Send the SIM900 command and wait for the reply (prefixed with <reply>.
  * Finally the SIM900 should give "OK"
@@ -646,8 +671,26 @@ bool GPRSbeeClass::getStrValue(const char *cmd, const char *reply, char * str, s
   return false;
 }
 
+bool GPRSbeeClass::getStrValue_P(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max)
+{
+  sendCommand_P(cmd);
+
+  if (waitForMessage_P(reply, ts_max)) {
+    const char *ptr = _SIM900_buffer + strlen_P(reply);
+    strncpy(str, ptr, size - 1);
+    // Wait for "OK"
+    return waitForOK();
+  }
+  return false;
+}
+
 /*
- * \brief Get SIM900 string value
+ * \brief Get SIM900 string value with the result of an AT command
+ *
+ *\param cmd    the AT command
+ *\param str    a pointer to where the result must be copied
+ *\param size   the length of the result buffer
+ *\param ts_max the maximum ts to wait for the reply
  *
  * Send the SIM900 command and wait for the reply.
  * Finally the SIM900 should give "OK"
@@ -1793,7 +1836,7 @@ bool GPRSbeeClass::getGCAP(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 2000;
-  return getStrValue("AT+GCAP", "+GCAP:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+GCAP"), PSTR("+GCAP:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::getCIMI(char *buffer, size_t buflen)
@@ -1807,49 +1850,49 @@ bool GPRSbeeClass::getCLIP(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+CLIP?", "+CLIP:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+CLIP?"), PSTR("+CLIP:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::getCLIR(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+CLIR?", "+CLIR:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+CLIR?"), PSTR("+CLIR:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::getCOLP(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+COLP?", "+COLP:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+COLP?"), PSTR("+COLP:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::getCOPS(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+COPS?", "+COPS:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+COPS?"), PSTR("+COPS:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::getCCLK(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+CCLK?", "+CCLK:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+CCLK?"), PSTR("+CCLK:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::getCSPN(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+CSPN?", "+CSPN:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+CSPN?"), PSTR("+CSPN:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::getCGID(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+CGID", "+GID:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+CGID"), PSTR("+GID:"), buffer, buflen, ts_max);
 }
 
 bool GPRSbeeClass::setCIURC(uint8_t value)
@@ -1866,7 +1909,7 @@ bool GPRSbeeClass::getCIURC(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+CIURC?", "+CIURC:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+CIURC?"), PSTR("+CIURC:"), buffer, buflen, ts_max);
 }
 
 /*
@@ -1891,7 +1934,7 @@ bool GPRSbeeClass::getCFUN(char *buffer, size_t buflen)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue("AT+CFUN?", "+CFUN:", buffer, buflen, ts_max);
+  return getStrValue_P(PSTR("AT+CFUN?"), PSTR("+CFUN:"), buffer, buflen, ts_max);
 }
 
 void GPRSbeeClass::enableLTS()
