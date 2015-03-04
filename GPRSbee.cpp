@@ -415,9 +415,12 @@ bool GPRSbeeClass::waitForOK(uint16_t timeout)
     if (strcmp_P(_SIM900_buffer, PSTR("OK")) == 0) {
       return true;
     }
+    else if (strcmp_P(_SIM900_buffer, PSTR("ERROR")) == 0) {
+      return false;
+    }
     // Other input is skipped.
   }
-  return false;         // This indicates: timed out
+  return false;
 }
 
 bool GPRSbeeClass::waitForMessage(const char *msg, uint32_t ts_max)
