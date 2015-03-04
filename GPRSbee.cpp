@@ -1938,11 +1938,17 @@ bool GPRSbeeClass::setCFUN(uint8_t value)
   return waitForOK();
 }
 
-bool GPRSbeeClass::getCFUN(char *buffer, size_t buflen)
+bool GPRSbeeClass::getCFUN(uint8_t * value)
 {
   switchEchoOff();
   uint32_t ts_max = millis() + 4000;
-  return getStrValue_P(PSTR("AT+CFUN?"), PSTR("+CFUN:"), buffer, buflen, ts_max);
+  int tmpValue;
+  bool status;
+  status = getIntValue_P(PSTR("AT+CFUN?"), PSTR("+CFUN:"), &tmpValue, ts_max);
+  if (status) {
+    *value = (uint8_t)tmpValue;
+  }
+  return status;
 }
 
 void GPRSbeeClass::enableLTS()

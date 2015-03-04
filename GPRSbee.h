@@ -99,7 +99,7 @@ public:
   bool setCIURC(uint8_t value);
   bool getCIURC(char *buffer, size_t buflen);
   bool setCFUN(uint8_t value);
-  bool getCFUN(char *buffer, size_t buflen);
+  bool getCFUN(uint8_t * value);
 
   void enableCIURC();
   void disableCIURC();
