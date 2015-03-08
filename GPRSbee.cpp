@@ -954,7 +954,7 @@ bool GPRSbeeClass::isTCPConnected()
 {
   uint32_t ts_max;
   bool retval = false;
-  char *ptr;
+  const char *ptr;
 
   if (!isOn()) {
     goto end;
@@ -983,9 +983,7 @@ bool GPRSbeeClass::isTCPConnected()
     goto end;
   }
   ptr = _SIM900_buffer + 6;
-  while (*ptr != '\0' && *ptr == ' ') {
-    ++ptr;
-  }
+  ptr = skipWhiteSpace(ptr);
   // Look at the state
   if (strcmp_P(ptr, PSTR("CONNECT OK")) != 0) {
     goto end;
@@ -1152,6 +1150,7 @@ bool GPRSbeeClass::closeFTP()
 bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
 {
   char cmd[64];
+  const char * ptr;
   int retry;
   uint32_t ts_max;
 
@@ -1179,16 +1178,27 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
       // +FTPPUT:1,66      <= this is an error (operation not allowed)
       // This can take a while ...
       ts_max = millis() + 30000;
-      if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
+      if (!waitForMessage_P(PSTR("+FTPPUT:"), ts_max)) {
         // Try again.
         isAlive();
         continue;
       }
-      if (strncmp_P(_SIM900_buffer + 10, PSTR("1,"), 2) != 0) {
+      // Skip 8 for "+FTPPUT:"
+      ptr = _SIM900_buffer + 8;
+      ptr = skipWhiteSpace(ptr);
+      if (strncmp_P(ptr, PSTR("1,"), 2) != 0) {
         // We did NOT get "+FTPPUT:1,1,", it might be an error.
         goto ending;
       }
-      _ftpMaxLength = strtoul(_SIM900_buffer + 12, NULL, 0);
+      ptr += 2;
+
+      if (strncmp_P(ptr, PSTR("1,"), 2) != 0) {
+        // We did NOT get "+FTPPUT:1,1,", it might be an error.
+        goto ending;
+      }
+      ptr += 2;
+
+      _ftpMaxLength = strtoul(ptr, NULL, 0);
 
       break;
     }
@@ -1222,7 +1232,7 @@ bool GPRSbeeClass::closeFTPfile()
    */
   // +FTPPUT:1,0
   uint32_t ts_max = millis() + 20000;
-  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:"), ts_max)) {
     // How bad is it if we ignore this
     //diagPrintLn(F("Timeout while waiting for +FTPPUT:1,"));
   }
@@ -1250,7 +1260,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
 
   ts_max = millis() + 10000;
   // +FTPPUT:2,22
-  if (!waitForMessage_P(PSTR("+FTPPUT:2,"), ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:"), ts_max)) {
     // How bad is it if we ignore this
     return false;
   }
@@ -1274,7 +1284,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
   // The SIM900 informs again what the new max length is
   ts_max = millis() + 4000;
   // +FTPPUT:1,1,1360
-  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:"), ts_max)) {
     // How bad is it if we ignore this?
     // It informs us about the _ftpMaxLength
   }
@@ -1285,6 +1295,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
 bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
 {
   char cmd[20];         // Should be enough for "AT+FTPPUT=2,<num>"
+  const char * ptr;
   uint32_t ts_max;
 
   // Send some data
@@ -1295,7 +1306,14 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
 
   ts_max = millis() + 10000;
   // +FTPPUT:2,22
-  if (!waitForMessage_P(PSTR("+FTPPUT:2,"), ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:"), ts_max)) {
+    ptr = _SIM900_buffer + 8;
+    if (strncmp_P(ptr, PSTR("2,"), 2) != 0) {
+      // We did NOT get "+FTPPUT:2,", it might be an error.
+      return false;
+    }
+    ptr += 2;
+    // TODO Check for the number
     // How bad is it if we ignore this
     return false;
   }
@@ -1318,7 +1336,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   // The SIM900 informs again what the new max length is
   ts_max = millis() + 30000;
   // +FTPPUT:1,1,1360
-  if (!waitForMessage_P(PSTR("+FTPPUT:1,"), ts_max)) {
+  if (!waitForMessage_P(PSTR("+FTPPUT:"), ts_max)) {
     // How bad is it if we ignore this?
     // It informs us about the _ftpMaxLength
   }
@@ -1660,9 +1678,7 @@ bool GPRSbeeClass::doHTTPACTION(char num)
     // The 12 is the length of "+HTTPACTION:"
     // We then have to skip the digit and the comma
     const char *ptr = _SIM900_buffer + 12;
-    while (*ptr != '\0' && *ptr == ' ') {
-      ++ptr;
-    }
+    ptr = skipWhiteSpace(ptr);
     ++ptr;              // The digit
     ++ptr;              // The comma
     char *bufend;
@@ -1671,6 +1687,7 @@ bool GPRSbeeClass::doHTTPACTION(char num)
       // Invalid number
       goto ending;
     }
+    // TODO Which result codes are allowed to pass?
     if (replycode == 200) {
       retval = true;
     } else {
@@ -1991,6 +2008,14 @@ void GPRSbeeClass::disableCIURC()
 {
   if (!sendCommandWaitForOK_P(PSTR("AT+CIURC=0"), 6000)) {
   }
+}
+
+const char * GPRSbeeClass::skipWhiteSpace(const char * txt)
+{
+  while (*txt != '\0' && *txt == ' ') {
+    ++txt;
+  }
+  return txt;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
