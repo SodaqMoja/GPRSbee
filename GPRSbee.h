@@ -84,6 +84,8 @@ public:
   void setDiag(Stream &stream) { _diagStream = &stream; }
   void setDiag(Stream *stream) { _diagStream = stream; }
 
+  void setSkipCGATT(bool x=true)        { _skipCGATT = x; }
+
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
 
   bool doHTTPPOST(const char *apn, const char *url, const char *postdata, size_t pdlen);
@@ -219,6 +221,7 @@ private:
   bool _transMode;
   bool _echoOff;
   enum onoffKind _onoffMethod;
+  bool _skipCGATT;
 };
 
 extern GPRSbeeClass gprsbee;

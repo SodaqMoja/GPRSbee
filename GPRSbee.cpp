@@ -122,6 +122,7 @@ void GPRSbeeClass::initProlog(Stream &stream)
   _transMode = false;
   _echoOff = false;
   _onoffMethod = onoff_toggle;
+  _skipCGATT = false;
 }
 
 bool GPRSbeeClass::on()
@@ -848,7 +849,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+  if (!_skipCGATT && !sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
     goto cmd_error;
   }
 
@@ -1092,7 +1093,7 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apn
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+  if (!_skipCGATT && !sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
     goto cmd_error;
   }
 
@@ -1554,7 +1555,7 @@ bool GPRSbeeClass::doHTTPprolog(const char *apn, const char *apnuser, const char
 
   // Attach to GPRS service
   // We need a longer timeout than the normal waitForOK
-  if (!sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+  if (!_skipCGATT && !sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
     goto ending;
   }
 
