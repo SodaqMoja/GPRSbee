@@ -240,17 +240,19 @@ void GPRSbeeClass::offSwitchMbiliJP2()
  */
 void GPRSbeeClass::onSwitchNdogoSIM800()
 {
-  diagPrintLn(F("on powerPin, vbatPin"));
-  // First PWRKEY HIGH
-  digitalWrite(_powerPin, HIGH);
-  // Wait a little
-  // TODO Figure out if this is really needed
-  delay(2);
-  digitalWrite(_vbatPin, HIGH);
-  // Should be instant
-  // Let's wait, but how long?
-  mydelay(2500);
-  digitalWrite(_powerPin, LOW);
+  if (!isOn()) {
+    diagPrintLn(F("on powerPin, vbatPin"));
+    // First PWRKEY HIGH
+    digitalWrite(_powerPin, HIGH);
+    // Wait a little
+    // TODO Figure out if this is really needed
+    delay(2);
+    digitalWrite(_vbatPin, HIGH);
+    // Should be instant
+    // Let's wait, but how long?
+    mydelay(2500);
+    digitalWrite(_powerPin, LOW);
+  }
 }
 
 /*!
@@ -258,14 +260,16 @@ void GPRSbeeClass::onSwitchNdogoSIM800()
  */
 void GPRSbeeClass::offSwitchNdogoSIM800()
 {
-  diagPrintLn(F("off vbatPin"));
-  // TODO We could do a toggle and let the device do a
-  // graceful shutdown.
-  // offToggle()
-  digitalWrite(_vbatPin, LOW);
-  // Should be instant
-  // Let's wait a little, but not too long
-  mydelay(50);
+  if (isOn()) {
+    diagPrintLn(F("off vbatPin"));
+    // TODO We could do a toggle and let the device do a
+    // graceful shutdown.
+    // offToggle()
+    digitalWrite(_vbatPin, LOW);
+    // Should be instant
+    // Let's wait a little, but not too long
+    mydelay(50);
+  }
 }
 
 bool GPRSbeeClass::isOn()
