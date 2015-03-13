@@ -1926,6 +1926,20 @@ bool GPRSbeeClass::getCOPS(char *buffer, size_t buflen)
   return getStrValue_P(PSTR("AT+COPS?"), PSTR("+COPS:"), buffer, buflen, ts_max);
 }
 
+bool GPRSbeeClass::setCCLK(const SIMDateTime & dt)
+{
+  String str;
+  str.reserve(30);
+  dt.addToString(str);
+  switchEchoOff();
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+CCLK=\""));
+  sendCommandAdd(str);
+  sendCommandAdd('"');
+  sendCommandEpilog();
+  return waitForOK();
+}
+
 bool GPRSbeeClass::getCCLK(char *buffer, size_t buflen)
 {
   switchEchoOff();
@@ -2025,6 +2039,30 @@ const char * GPRSbeeClass::skipWhiteSpace(const char * txt)
     ++txt;
   }
   return txt;
+}
+
+uint32_t GPRSbeeClass::getUnixEpoch() const
+{
+  bool status;
+  char buffer[64];
+
+  status = false;
+  for (uint8_t ix = 0; !status && ix < 10; ++ix) {
+    status = gprsbee.on();
+  }
+
+  status = false;
+  for (uint8_t ix = 0; !status && ix < 10; ++ix) {
+    status = gprsbee.getCCLK(buffer, sizeof(buffer));
+  }
+
+  const char * ptr = buffer;
+  if (*ptr == '"') {
+    ++ptr;
+  }
+  SIMDateTime dt = SIMDateTime(ptr);
+
+  return dt.getUnixEpoch();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2205,6 +2243,9 @@ uint32_t SIMDateTime::getUnixEpoch() const
   return getY2KEpoch() + 946684800;
 }
 
+/*
+ * \brief Convert a single digit to a number
+ */
 uint8_t SIMDateTime::conv1d(const char * txt)
 {
   uint8_t       val = 0;
@@ -2214,9 +2255,58 @@ uint8_t SIMDateTime::conv1d(const char * txt)
   return val;
 }
 
+/*
+ * \brief Convert two digits to a number
+ */
 uint8_t SIMDateTime::conv2d(const char * txt)
 {
   uint8_t val = conv1d(txt++) * 10;
   val += conv1d(txt);
   return val;
+}
+
+/*
+ * Format an integer as %0*d
+ *
+ * Arduino formatting sucks.
+ */
+static void add0Nd(String &str, uint16_t val, size_t width)
+{
+  if (width >= 5 && val < 10000) {
+    str += '0';
+  }
+  if (width >= 4 && val < 1000) {
+    str += '0';
+  }
+  if (width >= 3 && val < 100) {
+    str += '0';
+  }
+  if (width >= 2 && val < 10) {
+    str += '0';
+  }
+  str += val;
+}
+
+/*
+ * \brief Add to the String the text for the AT+CCLK= command
+ *
+ * The String is expected to already have enough reserved space
+ * so that an out-of-memory is not likely.
+ * The format is "yy/MM/dd,hh:mm:ss±zz"
+ * For the time being the timezone is set to 0 (UTC)
+ */
+void SIMDateTime::addToString(String & str) const
+{
+  add0Nd(str, _yOff, 2);
+  str += '/';
+  add0Nd(str, _m + 1, 2);
+  str += '/';
+  add0Nd(str, _d + 1, 2);
+  str += ',';
+  add0Nd(str, _hh, 2);
+  str += ':';
+  add0Nd(str, _mm, 2);
+  str += ':';
+  add0Nd(str, _ss, 2);
+  str += "+00";
 }
