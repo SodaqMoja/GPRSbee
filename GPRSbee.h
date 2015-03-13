@@ -182,6 +182,7 @@ private:
   void sendCommandAdd(char c);
   void sendCommandAdd(int i);
   void sendCommandAdd(const char *cmd);
+  void sendCommandAdd(const String & cmd);
   void sendCommandAdd_P(const char *cmd);
   void sendCommandEpilog();
 

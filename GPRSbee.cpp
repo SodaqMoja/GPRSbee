@@ -551,6 +551,11 @@ void GPRSbeeClass::sendCommandAdd(const char *cmd)
   diagPrint(cmd);
   _myStream->print(cmd);
 }
+void GPRSbeeClass::sendCommandAdd(const String & cmd)
+{
+  diagPrint(cmd);
+  _myStream->print(cmd);
+}
 void GPRSbeeClass::sendCommandAdd_P(const char *cmd)
 {
   diagPrint(reinterpret_cast<const __FlashStringHelper *>(cmd));
