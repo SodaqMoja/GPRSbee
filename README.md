@@ -2,6 +2,28 @@
 
 This is the Arduino library for GPRSbee.
 
+## HTTP GET Methods
+
+There is a group of functions to do a http GET. The main function is
+doHTTPGET.  There are also lower level functions which you may need
+when you want to do special things.  For example if you want to do
+multiple GETs in a row you can use the following sequence:
+```c
+  on
+  doHTTPprolog
+  doHTTPGETmiddle
+  doHTTPGETmiddle
+  doHTTPGETmiddle
+  doHTTPGETmiddle
+  doHTTPepilog
+  off
+```
+The function doHTTPGETmiddle does the actual GET.
+
+
+Another example to use these lower level GET functions is if you want
+to keep the GPRS connection up.
+
 ## On-Off Methods
 
 There are two methods to switch on the GPRSbee.  The "old" method
