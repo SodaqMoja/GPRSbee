@@ -120,7 +120,7 @@ public:
       const char *server, int port, bool transMode=false);
   void closeTCP();
   bool isTCPConnected();
-  bool sendDataTCP(uint8_t *data, int data_len);
+  bool sendDataTCP(const uint8_t *data, int data_len);
   bool receiveLineTCP(const char **buffer, uint16_t timeout=4000);
 
   bool openFTP(const char *apn, const char *server,

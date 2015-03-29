@@ -1017,7 +1017,7 @@ end:
 /*
  * \brief Send some data over the TCP connection
  */
-bool GPRSbeeClass::sendDataTCP(uint8_t *data, int data_len)
+bool GPRSbeeClass::sendDataTCP(const uint8_t *data, int data_len)
 {
   uint32_t ts_max;
   bool retval = false;
