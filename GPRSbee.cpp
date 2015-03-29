@@ -688,6 +688,7 @@ bool GPRSbeeClass::getStrValue(const char *cmd, const char *reply, char * str, s
       ++ptr;
     }
     strncpy(str, ptr, size - 1);
+    str[size - 1] = '\0';               // Terminate, just to be sure
     // Wait for "OK"
     return waitForOK();
   }
@@ -705,6 +706,7 @@ bool GPRSbeeClass::getStrValue_P(const char *cmd, const char *reply, char * str,
       ++ptr;
     }
     strncpy(str, ptr, size - 1);
+    str[size - 1] = '\0';               // Terminate, just to be sure
     // Wait for "OK"
     return waitForOK();
   }
@@ -739,6 +741,7 @@ bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_
       continue;
     }
     strncpy(str, _SIM900_buffer, size - 1);
+    str[size - 1] = '\0';               // Terminate, just to be sure
     break;
   }
   if (len < 0) {
