@@ -28,6 +28,25 @@
 // diagnostic
 #define ENABLE_GPRSBEE_DIAG     1
 
+/*!
+ * \def SIM900_DEFAULT_BUFFER_SIZE
+ *
+ * The GPRSbee class uses an internal buffer to read lines from
+ * the SIMx00. The buffer is allocated in .init() and the default
+ * size is what this define is set to.
+ *
+ * The function .readline() is the only function that writes to this
+ * internal buffer.
+ *
+ * Other functions (such as receiveLineTCP) can make use of .readline
+ * and sometimes it is necessary that the buffer is much bigger. Please
+ * be aware that the buffer is allocated once and never freed.
+ *
+ * You can make it allocate a bigger buffer by calling .setBufSize()
+ * before doing the .init()
+ */
+#define SIM900_DEFAULT_BUFFER_SIZE      64
+
 /*
  * \brief A class to store clock values
  */
@@ -78,8 +97,10 @@ private:
 class GPRSbeeClass
 {
 public:
-  void init(Stream &stream, int ctsPin, int powerPin);
-  void initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin);
+  void init(Stream &stream, int ctsPin, int powerPin,
+      int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
+  void initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
+      int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
   bool on();
   bool off();
   void setPowerSwitchedOnOff(bool x) { _onoffMethod = onoff_mbili_jp2; }
@@ -166,7 +187,7 @@ public:
   uint32_t getY2KEpoch() const;
 
 private:
-  void initProlog(Stream &stream);
+  void initProlog(Stream &stream, int bufferSize);
   void onToggle();
   void offToggle();
   void onSwitchMbiliJP2();
@@ -219,9 +240,8 @@ private:
     onoff_mbili_jp2,
     onoff_ndogo_sim800,
   };
-#define SIM900_BUFLEN 64
-  char _SIM900_buffer[SIM900_BUFLEN + 1];           // +1 for the 0 byte
-  int _SIM900_bufcnt;
+  char * _SIM900_buffer;
+  int _bufSize;
   Stream *_myStream;
   Stream *_diagStream;
   int8_t _statusPin;
