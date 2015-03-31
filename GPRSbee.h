@@ -189,7 +189,7 @@ public:
   uint32_t getY2KEpoch() const;
 
 private:
-  void initProlog(Stream &stream, int bufferSize);
+  void initProlog(Stream &stream, size_t bufferSize);
   void onToggle();
   void offToggle();
   void onSwitchMbiliJP2();
@@ -243,7 +243,7 @@ private:
     onoff_ndogo_sim800,
   };
   char * _SIM900_buffer;
-  int _bufSize;
+  size_t _bufSize;
   Stream *_myStream;
   Stream *_diagStream;
   int8_t _statusPin;

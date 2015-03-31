@@ -114,7 +114,7 @@ void GPRSbeeClass::initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, i
   }
 }
 
-void GPRSbeeClass::initProlog(Stream &stream, int bufferSize)
+void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
 {
   _bufSize = bufferSize;
   _SIM900_buffer = (char *)malloc(_bufSize);
