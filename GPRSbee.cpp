@@ -372,7 +372,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
       goto ok;
     } else {
       // Any other character is stored in the line buffer
-      if (bufcnt < (_bufSize + 1)) {    // Leave room for the terminating NUL
+      if (bufcnt < (_bufSize - 1)) {    // Leave room for the terminating NUL
         _SIM900_buffer[bufcnt++] = c;
       }
     }
