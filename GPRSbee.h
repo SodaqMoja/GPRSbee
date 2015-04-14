@@ -110,6 +110,8 @@ public:
   void setSkipCGATT(bool x=true)        { _skipCGATT = x; }
 
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
+  uint8_t getLastCSQ() const { return _lastCSQ; }
+  uint8_t getCSQtime() const { return _CSQtime; }
 
   bool doHTTPPOST(const char *apn, const char *url, const char *postdata, size_t pdlen);
   bool doHTTPPOST(const char *apn, const String & url, const char *postdata, size_t pdlen);
@@ -253,6 +255,8 @@ private:
   bool _echoOff;
   enum onoffKind _onoffMethod;
   bool _skipCGATT;
+  uint8_t _lastCSQ;
+  uint8_t _CSQtime;
 };
 
 extern GPRSbeeClass gprsbee;

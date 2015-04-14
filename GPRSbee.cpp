@@ -766,11 +766,14 @@ bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_
 bool GPRSbeeClass::waitForSignalQuality()
 {
   // TODO This timeout is maybe too long.
-  uint32_t ts_max = millis() + 120000;
+  uint32_t start = millis();
+  uint32_t ts_max = start + 120000;
   int value;
   while (!isTimedOut(ts_max)) {
     if (getIntValue("AT+CSQ", "+CSQ:", &value, millis() + 12000 )) {
       if (value >= _minSignalQuality) {
+        _lastCSQ = value;
+        _CSQtime = (int32_t)(millis() - start) / 1000;
         return true;
       }
     }
@@ -779,6 +782,7 @@ bool GPRSbeeClass::waitForSignalQuality()
       break;
     }
   }
+  _lastCSQ = 0;
   return false;
 }
 
