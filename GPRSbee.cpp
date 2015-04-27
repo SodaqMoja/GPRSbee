@@ -765,9 +765,13 @@ bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_
 
 bool GPRSbeeClass::waitForSignalQuality()
 {
-  // TODO This timeout is maybe too long.
+  /*
+   * The timeout is just a wild guess. If the mobile connection
+   * is really bad, or even absent, then it is a waste of time
+   * (and battery) to even try.
+   */
   uint32_t start = millis();
-  uint32_t ts_max = start + 120000;
+  uint32_t ts_max = start + 30000;
   int value;
   while (!isTimedOut(ts_max)) {
     if (getIntValue("AT+CSQ", "+CSQ:", &value, millis() + 12000 )) {
