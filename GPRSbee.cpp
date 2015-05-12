@@ -343,7 +343,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
   uint32_t ts_waitLF = 0;
   bool seenCR = false;
   int c;
-  int bufcnt;
+  size_t bufcnt;
 
   //diagPrintLn(F("readLine"));
   bufcnt = 0;
