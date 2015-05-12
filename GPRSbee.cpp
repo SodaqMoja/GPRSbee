@@ -826,6 +826,36 @@ bool GPRSbeeClass::waitForCREG()
   return false;
 }
 
+/*!
+ * \brief Do a few common things to start a connection
+ *
+ * Do a few things that are common for setting up
+ * a connection for TCP, FTP and HTTP.
+ */
+bool GPRSbeeClass::connectProlog()
+{
+  // Suppress echoing
+  switchEchoOff();
+
+  // Wait for signal quality
+  if (!waitForSignalQuality()) {
+    return false;
+  }
+
+  // Wait for CREG
+  if (!waitForCREG()) {
+    return false;
+  }
+
+  // Attach to GPRS service
+  // We need a longer timeout than the normal waitForOK
+  if (!_skipCGATT && !sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+    return false;
+  }
+
+  return true;
+}
+
 /*
 Secondly, you should use the command group AT+CSTT, AT+CIICR and AT+CIFSR to start
 the task and activate the wireless connection. Lastly, you can establish TCP connection between
@@ -865,22 +895,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
     goto ending;
   }
 
-  // Suppress echoing
-  switchEchoOff();
-
-  // Wait for signal quality
-  if (!waitForSignalQuality()) {
-    goto cmd_error;
-  }
-
-  // Wait for CREG
-  if (!waitForCREG()) {
-    goto cmd_error;
-  }
-
-  // Attach to GPRS service
-  // We need a longer timeout than the normal waitForOK
-  if (!_skipCGATT && !sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+  if (!connectProlog()) {
     goto cmd_error;
   }
 
@@ -1107,22 +1122,7 @@ bool GPRSbeeClass::openFTP(const char *apn, const char *apnuser, const char *apn
     goto ending;
   }
 
-  // Suppress echoing
-  switchEchoOff();
-
-  // Wait for signal quality
-  if (!waitForSignalQuality()) {
-    goto cmd_error;
-  }
-
-  // Wait for CREG
-  if (!waitForCREG()) {
-    goto cmd_error;
-  }
-
-  // Attach to GPRS service
-  // We need a longer timeout than the normal waitForOK
-  if (!_skipCGATT && !sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+  if (!connectProlog()) {
     goto cmd_error;
   }
 
@@ -1590,22 +1590,7 @@ bool GPRSbeeClass::doHTTPprolog(const char *apn, const char *apnuser, const char
 {
   bool retval = false;
 
-  // Suppress echoing
-  switchEchoOff();
-
-  // Wait for signal quality
-  if (!waitForSignalQuality()) {
-    goto ending;
-  }
-
-  // Wait for CREG
-  if (!waitForCREG()) {
-    goto ending;
-  }
-
-  // Attach to GPRS service
-  // We need a longer timeout than the normal waitForOK
-  if (!_skipCGATT && !sendCommandWaitForOK_P(PSTR("AT+CGATT=1"), 30000)) {
+  if (!connectProlog()) {
     goto ending;
   }
 

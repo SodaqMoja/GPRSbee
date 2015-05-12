@@ -225,6 +225,8 @@ private:
   bool getStrValue(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max);
   bool getStrValue_P(const char *cmd, const char *reply, char * str, size_t size, uint32_t ts_max);
   bool getStrValue(const char *cmd, char * str, size_t size, uint32_t ts_max);
+
+  bool connectProlog();
   bool waitForSignalQuality();
   bool waitForCREG();
   bool setBearerParms(const char *apn, const char *user, const char *pwd);
