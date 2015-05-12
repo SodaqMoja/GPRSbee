@@ -107,7 +107,7 @@ public:
   void setDiag(Stream &stream) { _diagStream = &stream; }
   void setDiag(Stream *stream) { _diagStream = stream; }
 
-  void setSkipCGATT(bool x=true)        { _skipCGATT = x; }
+  void setSkipCGATT(bool x=true)        { _skipCGATT = x; _changedSkipCGATT = true; }
 
   void setMinSignalQuality(int q) { _minSignalQuality = q; }
   uint8_t getLastCSQ() const { return _lastCSQ; }
@@ -231,6 +231,9 @@ private:
   bool waitForCREG();
   bool setBearerParms(const char *apn, const char *user, const char *pwd);
 
+  bool getPII(char *buffer, size_t buflen);
+  void setProductId();
+
   // Small utility to see if we timed out
   bool isTimedOut(uint32_t ts) { return (long)(millis() - ts) >= 0; }
 
@@ -257,8 +260,15 @@ private:
   bool _echoOff;
   enum onoffKind _onoffMethod;
   bool _skipCGATT;
+  bool _changedSkipCGATT;		// This is set when the user has changed it.
   uint8_t _lastCSQ;
   uint8_t _CSQtime;
+  enum productIdKind {
+    prodid_unknown,
+    prodid_SIM900,
+    prodid_SIM800,
+  };
+  enum productIdKind _productId;
 };
 
 extern GPRSbeeClass gprsbee;

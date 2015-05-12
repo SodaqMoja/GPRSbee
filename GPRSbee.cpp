@@ -129,6 +129,8 @@ void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
   _echoOff = false;
   _onoffMethod = onoff_toggle;
   _skipCGATT = false;
+  _changedSkipCGATT = false;
+  _productId = prodid_unknown;
 }
 
 bool GPRSbeeClass::on()
@@ -845,6 +847,14 @@ bool GPRSbeeClass::connectProlog()
   // Wait for CREG
   if (!waitForCREG()) {
     return false;
+  }
+
+  if (!_changedSkipCGATT && _productId == prodid_unknown) {
+    // Try to figure out what kind it is. SIM900? SIM800? etc.
+    setProductId();
+    if (_productId == prodid_SIM800) {
+      _skipCGATT = true;
+    }
   }
 
   // Attach to GPRS service
@@ -2038,6 +2048,35 @@ void GPRSbeeClass::enableCIURC()
 void GPRSbeeClass::disableCIURC()
 {
   if (!sendCommandWaitForOK_P(PSTR("AT+CIURC=0"), 6000)) {
+  }
+}
+
+/*!
+ * \brief Get Product Identification Information
+ *
+ * Send the ATI command and get the result.
+ * SIM900 is expected to return something like:
+ *    SIM900 R11.0
+ * SIM800 is expected to return something like:
+ *    SIM800 R11.08
+ */
+bool GPRSbeeClass::getPII(char *buffer, size_t buflen)
+{
+  switchEchoOff();
+  uint32_t ts_max = millis() + 2000;
+  return getStrValue("ATI", buffer, buflen, ts_max);
+}
+
+void GPRSbeeClass::setProductId()
+{
+  char buffer[64];
+  if (getPII(buffer, sizeof(buffer))) {
+    if (strncmp_P(buffer, PSTR("SIM900"), 6) == 0) {
+      _productId = prodid_SIM900;
+    }
+    else if (strncmp_P(buffer, PSTR("SIM800"), 6) == 0) {
+      _productId = prodid_SIM800;
+    }
   }
 }
 
