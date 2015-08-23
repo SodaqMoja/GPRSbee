@@ -20,7 +20,12 @@
 
 #include <Arduino.h>
 #include <Stream.h>
+#include <avr/pgmspace.h>
+#ifdef ARDUINO_ARCH_AVR
 #include <avr/wdt.h>
+#else
+#define wdt_reset()
+#endif
 #include <stdlib.h>
 
 #include "GPRSbee.h"
@@ -114,6 +119,32 @@ void GPRSbeeClass::initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, i
   }
 }
 
+void GPRSbeeClass::initAutonomoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
+    int bufferSize)
+{
+  initProlog(stream, bufferSize);
+  _onoffMethod = onoff_autonomo_sim800;
+
+  if (pwrkeyPin >= 0) {
+    _powerPin = pwrkeyPin;
+    // First write the output value, and only then set the output mode.
+    digitalWrite(_powerPin, LOW);
+    pinMode(_powerPin, OUTPUT);
+  }
+
+  if (vbatPin >= 0) {
+    _vbatPin = vbatPin;
+    // First write the output value, and only then set the output mode.
+    digitalWrite(_vbatPin, LOW);
+    pinMode(_vbatPin, OUTPUT);
+  }
+
+  if (statusPin >= 0) {
+    _statusPin = statusPin;
+    pinMode(_statusPin, INPUT);
+  }
+}
+
 void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
 {
   _bufSize = bufferSize;
@@ -142,12 +173,18 @@ bool GPRSbeeClass::on()
   case onoff_ndogo_sim800:
     onSwitchNdogoSIM800();
     break;
+  case onoff_autonomo_sim800:
+    onSwitchAutonomoSIM800();
+    break;
   default:
     // The old-fashioned way, just toggle
     onToggle();
     break;
   }
 
+  diagPrintLn(F("check isAlive"));
+  int i = _myStream->available();
+  diagPrintLn(i);
   // Make sure it responds
   if (!isAlive()) {
     // Oh, no answer, maybe it's off
@@ -164,6 +201,9 @@ bool GPRSbeeClass::off()
     break;
   case onoff_ndogo_sim800:
     offSwitchNdogoSIM800();
+    break;
+  case onoff_autonomo_sim800:
+    offSwitchAutonomoSIM800();
     break;
   default:
     // The old-fashioned way, just toggle
@@ -273,6 +313,43 @@ void GPRSbeeClass::offSwitchNdogoSIM800()
     // TODO We could do a toggle and let the device do a
     // graceful shutdown.
     // offToggle()
+    digitalWrite(_vbatPin, LOW);
+    // Should be instant
+    // Let's wait a little, but not too long
+    mydelay(50);
+  }
+}
+
+/*!
+ * \brief Switch on GPRSbee (rev6) SIM800 connected to the Autonomo
+ *
+ * The first thing to do is to switch on the BEE_VCC.
+ * Next we switch on the DTR, which powers up the SIM800 and it
+ * makes PWRKEY HIGH.
+ */
+void GPRSbeeClass::onSwitchAutonomoSIM800()
+{
+  if (!isOn()) {
+    diagPrintLn(F("on powerPin, vbatPin"));
+    // First PWRKEY HIGH
+    digitalWrite(_powerPin, HIGH);
+    // Wait a little
+    // TODO Figure out if this is really needed
+    delay(2);
+    digitalWrite(_vbatPin, HIGH);
+  }
+}
+
+/*!
+ * brief Switch SIM800 off via BEE_VCC and SIM800PWRKEY
+ */
+void GPRSbeeClass::offSwitchAutonomoSIM800()
+{
+  if (isOn()) {
+    diagPrintLn(F("off powerPin"));
+    digitalWrite(_powerPin, LOW);
+    // The GPRSbee is switched off immediately
+    diagPrintLn(F("off vbatPin"));
     digitalWrite(_vbatPin, LOW);
     // Should be instant
     // Let's wait a little, but not too long
@@ -1988,7 +2065,7 @@ bool GPRSbeeClass::setCIURC(uint8_t value)
   switchEchoOff();
   sendCommandProlog();
   sendCommandAdd_P(PSTR("AT+CIURC="));
-  sendCommandAdd(value);
+  sendCommandAdd((int)value);
   sendCommandEpilog();
   return waitForOK();
 }
@@ -2013,7 +2090,7 @@ bool GPRSbeeClass::setCFUN(uint8_t value)
   switchEchoOff();
   sendCommandProlog();
   sendCommandAdd_P(PSTR("AT+CFUN="));
-  sendCommandAdd(value);
+  sendCommandAdd((int)value);
   sendCommandEpilog();
   return waitForOK();
 }

@@ -101,6 +101,8 @@ public:
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
   void initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
+  void initAutonomoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
+      int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
   bool on();
   bool off();
   void setPowerSwitchedOnOff(bool x) { _onoffMethod = onoff_mbili_jp2; }
@@ -196,6 +198,8 @@ private:
   void offSwitchMbiliJP2();
   void onSwitchNdogoSIM800();
   void offSwitchNdogoSIM800();
+  void onSwitchAutonomoSIM800();
+  void offSwitchAutonomoSIM800();
   bool isOn();
   void toggle();
   bool isAlive();
@@ -246,6 +250,7 @@ private:
     onoff_toggle,
     onoff_mbili_jp2,
     onoff_ndogo_sim800,
+    onoff_autonomo_sim800,
   };
   char * _SIM900_buffer;
   size_t _bufSize;
