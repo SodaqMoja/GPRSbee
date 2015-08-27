@@ -182,13 +182,14 @@ bool GPRSbeeClass::on()
     break;
   }
 
-  diagPrintLn(F("check isAlive"));
-  int i = _myStream->available();
-  diagPrintLn(i);
   // Make sure it responds
   if (!isAlive()) {
     // Oh, no answer, maybe it's off
     // Fall through and rely on the cts pin
+  } else {
+    // It's alive, it answered with an OK
+    // Switch off URC (Unsolicited Result Code)
+    disableCIURC();
   }
   return isOn();
 }
