@@ -1159,25 +1159,26 @@ end:
   return retval;
 }
 
-/*
+/*!
  * \brief Send some data over the TCP connection
  */
-bool GPRSbeeClass::sendDataTCP(const uint8_t *data, int data_len)
+bool GPRSbeeClass::sendDataTCP(const uint8_t *data, size_t data_len)
 {
   uint32_t ts_max;
   bool retval = false;
 
-  mydelay(500);
-  flushInput();
-  _myStream->print(F("AT+CIPSEND="));
-  _myStream->println(data_len);
+  mydelay(500);         // TODO Find out if we really need this delay
+  sendCommandProlog();
+  sendCommandAdd_P(PSTR("AT+CIPSEND="));
+  sendCommandAdd((int)data_len);
+  sendCommandEpilog();
   ts_max = millis() + 4000;             // Is this enough?
   if (!waitForPrompt("> ", ts_max)) {
     goto error;
   }
   mydelay(500);           // Wait a little, just to be sure
   // Send the data
-  for (int i = 0; i < data_len; ++i) {
+  for (size_t i = 0; i < data_len; ++i) {
     _myStream->print((char)*data++);
   }
   //
@@ -1194,6 +1195,37 @@ ending:
   return retval;
 }
 
+/*!
+ * \brief Receive a number of bytes from the TCP connection
+ *
+ * If there are not enough bytes then this function will time
+ * out, and it will return false.
+ */
+bool GPRSbeeClass::receiveDataTCP(uint8_t *data, size_t data_len, uint16_t timeout)
+{
+  uint32_t ts_max;
+  bool retval = false;
+
+  //diagPrintLn(F("receiveDataTCP"));
+  ts_max = millis() + timeout;
+  while (data_len > 0 && !isTimedOut(ts_max)) {
+    if (_myStream->available() > 0) {
+      uint8_t b;
+      b = _myStream->read();
+      *data++ = b;
+      --data_len;
+    }
+  }
+  if (data_len == 0) {
+    retval = true;
+  }
+
+  return retval;
+}
+
+/*!
+ * \brief Receive a line of ASCII via the TCP connection
+ */
 bool GPRSbeeClass::receiveLineTCP(const char **buffer, uint16_t timeout)
 {
   uint32_t ts_max;
