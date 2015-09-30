@@ -843,6 +843,22 @@ bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_
   return waitForOK();
 }
 
+/*!
+ * \brief Utility function to do waitForSignalQuality and waitForCREG
+ */
+bool GPRSbeeClass::networkOn()
+{
+  bool status;
+  status = on();
+  if (status) {
+    status = waitForSignalQuality();
+    if (status) {
+      status = waitForCREG();
+    }
+  }
+  return status;
+}
+
 bool GPRSbeeClass::waitForSignalQuality()
 {
   /*

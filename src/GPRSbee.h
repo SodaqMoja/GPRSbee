@@ -115,6 +115,8 @@ public:
   uint8_t getLastCSQ() const { return _lastCSQ; }
   uint8_t getCSQtime() const { return _CSQtime; }
 
+  bool networkOn();
+
   bool doHTTPPOST(const char *apn, const char *url, const char *postdata, size_t pdlen);
   bool doHTTPPOST(const char *apn, const String & url, const char *postdata, size_t pdlen);
   bool doHTTPPOST(const char *apn, const char *apnuser, const char *apnpwd,
