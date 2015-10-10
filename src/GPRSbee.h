@@ -166,6 +166,7 @@ public:
   bool getIMEI(char *buffer, size_t buflen);
   bool getGCAP(char *buffer, size_t buflen);
   bool getCIMI(char *buffer, size_t buflen);
+  bool getCCID(char *buffer, size_t buflen);
   bool getCLIP(char *buffer, size_t buflen);
   bool getCLIR(char *buffer, size_t buflen);
   bool getCOLP(char *buffer, size_t buflen);
