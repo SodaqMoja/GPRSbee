@@ -620,7 +620,7 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
 void GPRSbeeClass::sendCommandProlog()
 {
   flushInput();
-  mydelay(50);
+  mydelay(50);                  // Without this we get lots of "readLine timed out". Unclear why
   diagPrint(F(">> "));
 }
 
@@ -1167,7 +1167,6 @@ bool GPRSbeeClass::sendDataTCP(const uint8_t *data, size_t data_len)
   uint32_t ts_max;
   bool retval = false;
 
-  mydelay(500);         // TODO Find out if we really need this delay
   sendCommandProlog();
   sendCommandAdd_P(PSTR("AT+CIPSEND="));
   sendCommandAdd((int)data_len);
@@ -1176,7 +1175,7 @@ bool GPRSbeeClass::sendDataTCP(const uint8_t *data, size_t data_len)
   if (!waitForPrompt("> ", ts_max)) {
     goto error;
   }
-  mydelay(500);           // Wait a little, just to be sure
+  mydelay(50);          // TODO Why do we need this?
   // Send the data
   for (size_t i = 0; i < data_len; ++i) {
     _myStream->print((char)*data++);
