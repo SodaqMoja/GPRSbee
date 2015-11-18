@@ -1084,7 +1084,7 @@ ending:
   return retval;
 }
 
-void GPRSbeeClass::closeTCP()
+void GPRSbeeClass::closeTCP(bool switchOff)
 {
   uint32_t ts_max;
   // AT+CIPSHUT
@@ -1101,7 +1101,9 @@ void GPRSbeeClass::closeTCP()
     diagPrintLn(F("closeTCP failed!"));
   }
 
-  off();
+  if (switchOff) {
+    off();
+  }
 }
 
 bool GPRSbeeClass::isTCPConnected()

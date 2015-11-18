@@ -145,7 +145,7 @@ public:
   bool openTCP(const char *apn, const char *server, int port, bool transMode=false);
   bool openTCP(const char *apn, const char *apnuser, const char *apnpwd,
       const char *server, int port, bool transMode=false);
-  void closeTCP();
+  void closeTCP(bool switchOff=true);
   bool isTCPConnected();
   bool sendDataTCP(const uint8_t *data, size_t data_len);
   bool receiveDataTCP(uint8_t *data, size_t data_len, uint16_t timeout=4000);
