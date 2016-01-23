@@ -1,5 +1,3 @@
-#ifndef GPRSBEE_H_
-#define GPRSBEE_H_
 /*
  * Copyright (c) 2013-2015 Kees Bakker.  All rights reserved.
  *
@@ -19,6 +17,9 @@
  * License along with GPRSbee.  If not, see
  * <http://www.gnu.org/licenses/>.
  */
+
+#ifndef GPRSBEE_H_
+#define GPRSBEE_H_
 
 #include <stdint.h>
 #include <Arduino.h>
@@ -105,17 +106,8 @@ public:
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
   void initAutonomoSIM800(Stream &stream, int vcc33Pin, int onoffPin, int statusPin,
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
-  //bool on();
-  //bool off();
-  //void setPowerSwitchedOnOff(bool x) { _onoffMethod = onoff_mbili_jp2; }
-  void setDiag(Stream &stream) { _diagStream = &stream; }
-  void setDiag(Stream *stream) { _diagStream = stream; }
 
   void setSkipCGATT(bool x=true)        { _skipCGATT = x; _changedSkipCGATT = true; }
-
-  void setMinSignalQuality(int q) { _minSignalQuality = q; }
-  uint8_t getLastCSQ() const { return _lastCSQ; }
-  uint8_t getCSQtime() const { return _CSQtime; }
 
   bool networkOn();
 
@@ -172,14 +164,18 @@ public:
           const char* password = NULL, AuthorizationTypes authorization = AutoDetectAutorization) { return false; }
   uint32_t getDefaultBaudrate() { return 0; }
 
-  bool setAPN(const char* apn) { return false; }
-  bool setAPNUsername(const char* username) { return false; }
-  bool setAPNPassword(const char* password) { return false; }
+  // Sets the apn, apn username and apn password to the modem.
+  bool sendAPN(const char* apn, const char* username, const char* password);
 
-  bool join(const char* apn = NULL, const char* username = NULL,
-                    const char* password = NULL, AuthorizationTypes authorization = AutoDetectAutorization) { return false; }
+  // Turns on and initializes the modem, then connects to the network and activates the data connection.
+  bool connect(const char* simPin, const char* apn, const char* username,
+                    const char* password, AuthorizationTypes authorization = AutoDetectAutorization);
 
-  bool disconnect() { return false; }
+  // Disconnects the modem from the network.
+  bool disconnect();
+
+  // Returns true if the modem is connected to the network and has an activated data connection.
+  bool isConnected();
 
   NetworkRegistrationStatuses getNetworkStatus() { return UnknownNetworkRegistrationStatus; }
 
@@ -206,28 +202,32 @@ public:
   // Get Host IP
   IP_t getHostIP(const char* host) { return 0; }
 
-  // Sockets
+  // ==== Sockets
+
   int createSocket(Protocols protocol, uint16_t localPort = 0) { return false; }
   bool connectSocket(uint8_t socket, const char* host, uint16_t port) { return false; }
-  bool socketSend(uint8_t socket, const char* buffer, size_t size) { return false; }
-  size_t socketReceive(uint8_t socket, char* buffer, size_t size) { return 0; } // returns number of bytes set to buffer
+  bool socketSend(uint8_t socket, const uint8_t* buffer, size_t size) { return false; }
+  size_t socketReceive(uint8_t socket, uint8_t* buffer, size_t size) { return 0; } // returns number of bytes set to buffer
   bool closeSocket(uint8_t socket) { return false; }
 
-  // HTTP
+  // ==== HTTP
+
   size_t httpRequest(const char* url, uint16_t port,
           const char* endpoint, HttpRequestTypes requestType = GET,
           char* responseBuffer = NULL, size_t responseSize = 0,
           const char* sendBuffer = NULL, size_t sendSize = 0) { return 0; }
 
-  // FTP
+  // ==== FTP
+
   bool openFtpConnection(const char* server, const char* username, const char* password, FtpModes ftpMode) { return false; }
   bool closeFtpConnection() { return false; }
   bool openFtpFile(const char* filename, const char* path = NULL) { return false; }
   bool ftpSend(const char* buffer) { return false; }
+  bool ftpSend(const uint8_t* buffer, size_t size) { return false; }
   int ftpReceive(char* buffer, size_t size) { return 0; }
   bool closeFtpFile() { return false; }
 
-  // SMS
+  // ==== SMS
   int getSmsList(const char* statusFilter = "ALL", int* indexList = NULL, size_t size = 0) { return 0; }
   bool readSms(uint8_t index, char* phoneNumber, char* buffer, size_t size) { return false; }
   bool deleteSms(uint8_t index) { return false; }
@@ -272,6 +272,7 @@ public:
 
 private:
   void initProlog(Stream &stream, size_t bufferSize);
+
   void onToggle();
   void offToggle();
   void onSwitchMbiliJP2();
@@ -280,9 +281,11 @@ private:
   void offSwitchNdogoSIM800();
   void onSwitchAutonomoSIM800();
   void offSwitchAutonomoSIM800();
+
+  bool isAlive();
   bool isOn();
   void toggle();
-  bool isAlive();
+
   void switchEchoOff();
   void flushInput();
   int readLine(uint32_t ts_max);
@@ -329,28 +332,11 @@ private:
   ResponseTypes readResponse(char* buffer, size_t size, size_t* outSize,
           uint32_t timeout = DEFAULT_READ_MS) { return ResponseNotFound; }
 
-  enum onoffKind {
-    onoff_toggle,
-    onoff_mbili_jp2,
-    onoff_ndogo_sim800,
-    onoff_autonomo_sim800,
-  };
-  char * _SIM900_buffer;
-  size_t _bufSize;
-  //Stream *_myStream;
-  //Stream *_diagStream;
-  int8_t _statusPin;
-  int8_t _powerPin;
-  int8_t _vbatPin;
-  int _minSignalQuality;
   size_t _ftpMaxLength;
   bool _transMode;
   bool _echoOff;
-  //enum onoffKind _onoffMethod;
   bool _skipCGATT;
   bool _changedSkipCGATT;		// This is set when the user has changed it.
-  uint8_t _lastCSQ;
-  uint8_t _CSQtime;
   enum productIdKind {
     prodid_unknown,
     prodid_SIM900,

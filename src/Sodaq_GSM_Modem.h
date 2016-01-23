@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2015-2016 Kees Bakker.  All rights reserved.
+ *
+ * This file is part of GPRSbee.
+ *
+ * GPRSbee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 3 of
+ * the License, or(at your option) any later version.
+ *
+ * GPRSbee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with GPRSbee.  If not, see
+ * <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef _SODAQ_GSM_MODEM_h
 #define _SODAQ_GSM_MODEM_h
 
@@ -6,28 +26,10 @@
 #include <Stream.h>
 #include "Sodaq_OnOffBee.h"
 
-#define CR "\r"
-#define LF "\n"
-#define CRLF "\r\n"
-
+// TODO Add #if defined(), and change the name
 #define DEFAULT_TIMEOUT 1000
 
-#define SODAQ_GSM_MODEM_DEFAULT_INPUT_BUFFER_SIZE 128
-
-// TODO this needs to be set in the compiler directives. Find something else to do
-#define SODAQ_GSM_TERMINATOR CRLF
-
-#ifndef SODAQ_GSM_TERMINATOR
-#warning "SODAQ_GSM_TERMINATOR is not set"
-#define SODAQ_GSM_TERMINATOR CRLF
-#endif
-
-#define SODAQ_GSM_TERMINATOR_LEN (sizeof(SODAQ_GSM_TERMINATOR) - 1) // without the NULL terminator
-
-typedef void (*BaudRateChangeCallbackPtr)(uint32_t newBaudrate);
-
-// TODO handle Watchdog, also use a define to turn handling on/off
-
+// Data authorization type.
 enum AuthorizationTypes {
     NoAuthorization = 0,
     PAP = 1,
@@ -35,6 +37,7 @@ enum AuthorizationTypes {
     AutoDetectAutorization = 3,
 };
 
+// Network registration status.
 enum NetworkRegistrationStatuses {
     UnknownNetworkRegistrationStatus = 0,
     Denied,
@@ -43,6 +46,7 @@ enum NetworkRegistrationStatuses {
     Roaming,
 };
 
+// Network Technology.
 enum NetworkTechnologies {
     UnknownNetworkTechnology = 0,
     GSM,
@@ -54,6 +58,7 @@ enum NetworkTechnologies {
     LTE,
 };
 
+// SIM status.
 enum SimStatuses {
     SimStatusUnknown = 0,
     SimMissing,
@@ -61,11 +66,13 @@ enum SimStatuses {
     SimReady,
 };
 
+// TCP/UDP Protocol.
 enum Protocols {
     TCP = 0,
     UDP,
 };
 
+// HTTP request type.
 enum HttpRequestTypes {
     POST = 0,
     GET,
@@ -75,11 +82,13 @@ enum HttpRequestTypes {
     HttpRequestTypesMAX = PUT,
 };
 
+// FTP mode.
 enum FtpModes {
-    ACTIVE = 0,
-    PASSIVE,
+    ActiveMode = 0,
+    PassiveMode,
 };
 
+// Response type (returned by readResponse() and parser methods).
 enum ResponseTypes {
     ResponseNotFound = 0,
     ResponseOK = 1,
@@ -89,9 +98,13 @@ enum ResponseTypes {
     ResponseEmpty = 5,
 };
 
+// IP type
 typedef uint32_t IP_t;
 
-#define DEFAULT_READ_MS 5000
+// callback for changing the baudrate of the modem stream.
+typedef void (*BaudRateChangeCallbackPtr)(uint32_t newBaudrate);
+
+#define DEFAULT_READ_MS 5000 // Used in readResponse()
 
 #define NO_IP_ADDRESS ((IP_t)0)
 
@@ -108,93 +121,199 @@ typedef uint32_t IP_t;
 #define SOCKET_FAIL -1
 
 class Sodaq_3GbeeOnOff;
+
 class Sodaq_GSM_Modem {
 public:
     // Constructor
     Sodaq_GSM_Modem();
+    virtual ~Sodaq_GSM_Modem() {}
 
+    // Sets the onoff instance
     void setOnOff(Sodaq_OnOffBee & onoff) { _onoff = &onoff; }
-    bool on();
-    bool off();
 
+    // Turns the modem on and returns true if successful.
+    bool on();
+
+    // Turns the modem off and returns true if successful.
+    bool off() const;
 
     // Sets the optional "Diagnostics and Debug" stream.
-    void setDiag(Stream& stream) { this->_diagStream = &stream; };
+    void setDiag(Stream &stream) { _diagStream = &stream; }
+    void setDiag(Stream *stream) { _diagStream = stream; }
 
     // Sets the size of the input buffer.
     // Needs to be called before init().
     void setInputBufferSize(size_t value) { this->_inputBufferSize = value; };
 
+    // Store APN and user and password
     void setApn(const char *apn);
     void setApnUser(const char *user);
     void setApnPass(const char *pass);
 
-    virtual bool isAlive() = 0;
-
-    virtual bool init(Stream& stream, const char* simPin = NULL, const char* apn = NULL, const char* username = NULL,
-                      const char* password = NULL, AuthorizationTypes authorization = AutoDetectAutorization) = 0;
-
+    // Returns the default baud rate of the modem. 
+    // To be used when initializing the modem stream for the first time.
     virtual uint32_t getDefaultBaudrate() = 0;
+
+    // Enables the change of the baud rate to a higher speed when the modem is ready to do so.
+    // Needs a callback in the main application to re-initialize the stream.
     void enableBaudrateChange(BaudRateChangeCallbackPtr callback) { _baudRateChangeCallbackPtr = callback; };
 
-    virtual bool join(const char* apn = NULL, const char* username = NULL,
-                      const char* password = NULL, AuthorizationTypes authorization = AutoDetectAutorization) = 0;
+    // Sets the apn, apn username and apn password to the modem.
+    virtual bool sendAPN(const char* apn, const char* username, const char* password) = 0;
 
+    // Turns on and initializes the modem, then connects to the network and activates the data connection.
+    virtual bool connect(const char* simPin, const char* apn, const char* username,
+                      const char* password, AuthorizationTypes authorization = AutoDetectAutorization) = 0;
+
+    // Disconnects the modem from the network.
     virtual bool disconnect() = 0;
 
+    // Returns true if the modem is connected to the network and has an activated data connection.
+    virtual bool isConnected() = 0;
+
+    void setMinSignalQuality(int q) { _minSignalQuality = q; }
+    uint8_t getCSQtime() const { return _CSQtime; }
+
+    uint8_t getLastCSQ() const { return _lastCSQ; }
+
+    // Returns the current status of the network.
     virtual NetworkRegistrationStatuses getNetworkStatus() = 0;
 
+    // Returns the network technology the modem is currently registered to.
     virtual NetworkTechnologies getNetworkTechnology() = 0;
 
-    // Get the Received Signal Strength Indication and Bit Error Rate
+    // Gets the Received Signal Strength Indication in dBm and Bit Error Rate.
+    // Returns true if successful.
     virtual bool getRSSIAndBER(int8_t* rssi, uint8_t* ber) = 0;
 
-    // Get the Operator Name
+    // Gets the Operator Name.
+    // Returns true if successful.
     virtual bool getOperatorName(char* buffer, size_t size) = 0;
 
-    // Get Mobile Directory Number
+    // Gets Mobile Directory Number.
+    // Returns true if successful.
     virtual bool getMobileDirectoryNumber(char* buffer, size_t size) = 0;
 
-    // Get International Mobile Equipment Identity
+    // Gets International Mobile Equipment Identity.
+    // Should be provided with a buffer of at least 16 bytes.
+    // Returns true if successful.
     virtual bool getIMEI(char* buffer, size_t size) = 0;
 
-    // Get Integrated Circuit Card ID
+    // Gets Integrated Circuit Card ID.
+    // Should be provided with a buffer of at least 21 bytes.
+    // Returns true if successful.
     virtual bool getCCID(char* buffer, size_t size) = 0;
 
-    // Get International Mobile Station Identity
+    // Gets the International Mobile Station Identity.
+    // Should be provided with a buffer of at least 16 bytes.
+    // Returns true if successful.
     virtual bool getIMSI(char* buffer, size_t size) = 0;
 
-    // Get SIM status
+    // Returns the current SIM status.
     virtual SimStatuses getSimStatus() = 0;
 
-    // Get IP Address
+    // Returns the local IP Address.
     virtual IP_t getLocalIP() = 0;
 
-    // Get Host IP
+    // Returns the IP of the given host (nslookup).
     virtual IP_t getHostIP(const char* host) = 0;
 
-    // Sockets
+    // ==== Sockets
+
+    // Creates a new socket for the given protocol, optionally bound to the given localPort.
+    // Returns the index of the socket created or -1 in case of error.
     virtual int createSocket(Protocols protocol, uint16_t localPort = 0) = 0;
+    
+    // Requests a connection to the given host and port, on the given socket.
+    // Returns true if successful.
     virtual bool connectSocket(uint8_t socket, const char* host, uint16_t port) = 0;
-    virtual bool socketSend(uint8_t socket, const char* buffer, size_t size) = 0;
-    virtual size_t socketReceive(uint8_t socket, char* buffer, size_t size) = 0; // returns number of bytes set to buffer
+    
+    // Sends the given buffer through the given socket.
+    // Returns true if successful.
+    virtual bool socketSend(uint8_t socket, const uint8_t* buffer, size_t size) = 0;
+    
+    // Reads data from the given socket into the given buffer.
+    // Returns the number of bytes written to the buffer.
+    virtual size_t socketReceive(uint8_t socket, uint8_t* buffer, size_t size) = 0;
+    
+    // Closes the given socket.
+    // Returns true if successful.
     virtual bool closeSocket(uint8_t socket) = 0;
 
-    // HTTP
-    virtual size_t httpRequest(const char* url, uint16_t port, const char* endpoint, HttpRequestTypes requestType = GET, char* responseBuffer = NULL, size_t responseSize = 0, const char* sendBuffer = NULL, size_t sendSize = 0) = 0;
+    // ==== TCP
 
-    // FTP
+    // Open a TCP connection
+    // This is merely a convenience wrapper which can use socket functions.
+    virtual bool openTCP(const char *apn, const char *apnuser, const char *apnpwd,
+            const char *server, int port, bool transMode=false) = 0;
+
+    // Close the TCP connection
+    // This is merely a convenience wrapper which can use socket functions.
+    virtual void closeTCP(bool switchOff=true) = 0;
+
+    // Send data via TCP
+    // This is merely a convenience wrapper which can use socket functions.
+    virtual bool sendDataTCP(const uint8_t *data, size_t data_len) = 0;
+
+    // Receive data via TCP
+    // This is merely a convenience wrapper which can use socket functions.
+    virtual bool receiveDataTCP(uint8_t *data, size_t data_len, uint16_t timeout=4000) = 0;
+
+    // ==== HTTP
+
+    // Creates an HTTP request using the (optional) given buffer and 
+    // (optionally) returns the received data.
+    // endpoint should include the initial "/".
+    virtual size_t httpRequest(const char* url, uint16_t port, const char* endpoint,
+            HttpRequestTypes requestType = GET,
+            char* responseBuffer = NULL, size_t responseSize = 0,
+            const char* sendBuffer = NULL, size_t sendSize = 0) = 0;
+
+    // ==== FTP
+
+    // Opens an FTP connection.
     virtual bool openFtpConnection(const char* server, const char* username, const char* password, FtpModes ftpMode) = 0;
+    
+    // Closes the FTP connection.
     virtual bool closeFtpConnection() = 0;
+
+    // Opens an FTP file for sending or receiving.
+    // filename should be limited to 256 characters (excl. null terminator)
+    // path should be limited to 512 characters (excl. null temrinator)
     virtual bool openFtpFile(const char* filename, const char* path = NULL) = 0;
+
+    // Sends the given "buffer" to the (already) open FTP file.
+    // Returns true if successful.
+    // Fails immediatelly if there is no open FTP file.
     virtual bool ftpSend(const char* buffer) = 0;
+    virtual bool ftpSend(const uint8_t* buffer, size_t size) = 0;
+
+    // Fills the given "buffer" from the (already) open FTP file.
+    // Returns true if successful.
+    // Fails immediatelly if there is no open FTP file.
     virtual int ftpReceive(char* buffer, size_t size) = 0;
+
+    // Closes the open FTP file.
+    // Returns true if successful.
+    // Fails immediatelly if there is no open FTP file.
     virtual bool closeFtpFile() = 0;
 
-    // SMS
+    // ==== SMS
+    
+    // Gets an SMS list according to the given filter and puts the indexes in the "indexList".
+    // Returns the number of indexes written to the list or -1 in case of error.
     virtual int getSmsList(const char* statusFilter = "ALL", int* indexList = NULL, size_t size = 0) = 0;
+    
+    // Reads an SMS from the given index and writes it to the given buffer.
+    // Returns true if successful.
     virtual bool readSms(uint8_t index, char* phoneNumber, char* buffer, size_t size) = 0;
+    
+    // Deletes the SMS at the given index.
     virtual bool deleteSms(uint8_t index) = 0;
+
+    // Sends a text-mode SMS.
+    // Expects a null-terminated buffer.
+    // Returns true if successful.
     virtual bool sendSms(const char* phoneNumber, const char* buffer) = 0;
 
     // MQTT (using this class as a transport)
@@ -217,49 +336,90 @@ protected:
     // Flag to make sure the buffers are not allocated more than once.
     bool _isBufferInitialized;
 
+    // The buffer used when reading from the modem. The space is allocated during init() via initBuffer().
     char* _inputBuffer;
 
     char * _apn;
     char * _apnUser;
     char * _apnPass;
 
+    // The timeout used by the stream helper methods contained in this class (such as timedRead()).
     uint32_t _timeout;
 
-    Sodaq_OnOffBee * _onoff;
+    // The on-off pin power controller object.
+    Sodaq_OnOffBee* _onoff;
 
+    // The callback for requesting baudrate change of the modem stream.
     BaudRateChangeCallbackPtr _baudRateChangeCallbackPtr;
 
-    // initializes the input buffer and makes sure it is only initialized once. Safe to call multiple times.
+    // This flag keeps track if the next write is the continuation of the current command
+    // A Carriage Return will reset this flag.
+    bool _appendCommand;
+
+    // This is the value of the most recent CSQ
+    uint8_t _lastCSQ;
+
+    // This is the number of second it took when CSQ was record last
+    uint8_t _CSQtime;
+
+    // This is the minimum required CSQ to continue making the connection
+    int _minSignalQuality;
+
+    // Initializes the input buffer and makes sure it is only initialized once.
+    // Safe to call multiple times.
     void initBuffer();
 
-    bool isOn();
+    // Returns true if the modem is ON (and replies to "AT" commands without timing out)
+    virtual bool isAlive() = 0;
 
+    // Returns true if the modem is on.
+    bool isOn() const;
+
+    // Sets the modem stream.
     void setModemStream(Stream& stream);
 
+    // Returns a character from the modem stream if read within _timeout ms or -1 otherwise.
     int timedRead() const;
 
-    size_t readBytesUntil(char terminator, char * buffer, size_t length);
+    // Fills the given "buffer" with characters read from the modem stream up to "length"
+    // maximum characters and until the "terminator" character is found or a character read
+    // times out (whichever happens first).
+    // The buffer does not contain the "terminator" character or a null terminator explicitly.
+    // Returns the number of characters written to the buffer, not including null terminator.
+    size_t readBytesUntil(char terminator, char* buffer, size_t length);
 
-    size_t readBytes(char * buffer, size_t length);
+    // Fills the given "buffer" with up to "length" characters read from the modem stream.
+    // It stops when a character read timesout or "length" characters have been read.
+    // Returns the number of characters written to the buffer.
+    size_t readBytes(uint8_t* buffer, size_t length);
 
-    // Reads a line from the device stream into the "buffer" starting at the "start" position of the buffer.
-    // Returns the number of bytes read.
+    // Reads a line from the modem stream into the "buffer". The line terminator is not
+    // written into the buffer. The buffer is terminated with null.
+    // Returns the number of bytes read, not including the null terminator.
     size_t readLn(char* buffer, size_t size, long timeout = DEFAULT_TIMEOUT);
 
-    // Reads a line from the device stream into the input buffer.
+    // Reads a line from the modem stream into the input buffer.
     // Returns the number of bytes read.
     size_t readLn() { return readLn(_inputBuffer, _inputBufferSize); };
 
+    // Methods to write to the modem stream
     size_t write(const char* buffer);
+    size_t writeByte(uint8_t value);
     size_t write(uint8_t value);
     size_t write(uint32_t value);
     size_t write(char value);
 
-    // write with terminator
+    // Methods to write to the modem stream with terminator
     size_t writeLn(const char* buffer);
     size_t writeLn(uint8_t value);
     size_t writeLn(uint32_t value);
     size_t writeLn(char value);
+
+    // Write the command terminator
+    size_t writeLn();
+
+    // Write the command prolog (just for debugging
+    void writeProlog();
 
     virtual ResponseTypes readResponse(char* buffer, size_t size, size_t* outSize, uint32_t timeout = DEFAULT_READ_MS) = 0;
 };

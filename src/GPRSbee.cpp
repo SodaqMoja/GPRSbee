@@ -74,72 +74,6 @@ static inline void mydelay(unsigned long nrMillis)
   delay(nrMillis);
 }
 
-/*!
- * \brief Initialize the instance
- * \param stream - the Stream instance to use to communicate with the SIMx00
- * \param ctsPin - the pin that is connected to the Bee CTS
- * \param powerPin - the pin that is connected to the Bee DTR
- *    (used to toggle power of the SIM900)
- * \param bufferSize - the size of the internal buffer used to read lines from the SIMx00
- *
- * This function does the work that a constructor could have done. But
- * in the Arduino world things are done differently.
- * The pinmode of the pins are setup. The output pins get their default
- * value.
- *
- * There are a few different methods to switch on the SIM900.
- * 1) the "old fashioned" method is to just toggle the /DTR port of the Bee slot
- * 2) the SODAQ Mbili has a switched power (JP2) that can be jumpered to power the GPRSbee
- * and the same digital output connected to the /DTR of the Bee slot
- * 3) the SODAQ Ndogo has a switched VBAT to power the SIM800 and a digital pin to
- * toggle the PWRKEY of the SIM800
- */
-void GPRSbeeClass::init(Stream &stream, int ctsPin, int powerPin,
-    int bufferSize)
-{
-  initProlog(stream, bufferSize);
-
-  if (powerPin >= 0) {
-    _powerPin = powerPin;
-    // First write the output value, and only then set the output mode.
-    digitalWrite(_powerPin, LOW);
-    pinMode(_powerPin, OUTPUT);
-  }
-
-  if (ctsPin >= 0) {
-    _statusPin = ctsPin;
-    pinMode(_statusPin, INPUT);
-  }
-}
-
-void GPRSbeeClass::initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
-    int bufferSize)
-{
-  initProlog(stream, bufferSize);
-#if 0
-  _onoffMethod = onoff_ndogo_sim800;
-
-  if (pwrkeyPin >= 0) {
-    _powerPin = pwrkeyPin;
-    // First write the output value, and only then set the output mode.
-    digitalWrite(_powerPin, LOW);
-    pinMode(_powerPin, OUTPUT);
-  }
-
-  if (vbatPin >= 0) {
-    _vbatPin = vbatPin;
-    // First write the output value, and only then set the output mode.
-    digitalWrite(_vbatPin, LOW);
-    pinMode(_vbatPin, OUTPUT);
-  }
-
-  if (statusPin >= 0) {
-    _statusPin = statusPin;
-    pinMode(_statusPin, INPUT);
-  }
-#endif
-}
-
 void GPRSbeeClass::initAutonomoSIM800(Stream &stream, int vcc33Pin, int onoffPin, int statusPin,
     int bufferSize)
 {
@@ -147,264 +81,27 @@ void GPRSbeeClass::initAutonomoSIM800(Stream &stream, int vcc33Pin, int onoffPin
 
   gprsbee_onoff.init(vcc33Pin, onoffPin, statusPin);
   _onoff = &gprsbee_onoff;
-#if 0
-  _onoffMethod = onoff_autonomo_sim800;
-
-  if (pwrkeyPin >= 0) {
-    _powerPin = pwrkeyPin;
-    // First write the output value, and only then set the output mode.
-    digitalWrite(_powerPin, LOW);
-    pinMode(_powerPin, OUTPUT);
-  }
-
-  if (vbatPin >= 0) {
-    _vbatPin = vbatPin;
-    // First write the output value, and only then set the output mode.
-    digitalWrite(_vbatPin, LOW);
-    pinMode(_vbatPin, OUTPUT);
-  }
-
-  if (statusPin >= 0) {
-    _statusPin = statusPin;
-    pinMode(_statusPin, INPUT);
-  }
-#endif
 }
 
 void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
 {
-  _bufSize = bufferSize;
-  _SIM900_buffer = (char *)malloc(_bufSize);
-  //_myStream = &stream;
-  _modemStream = &stream;       // TODO This should go through Sodaq_GSM_Modem initializer
-  //_diagStream = 0;
-  _statusPin = -1;
-  _powerPin = -1;
-  _vbatPin = -1;
+  _inputBufferSize = bufferSize;
+  initBuffer();
+
+  _modemStream = &stream;
+  _diagStream = 0;
+
   _minSignalQuality = 10;
+
   _ftpMaxLength = 0;
   _transMode = false;
+
   _echoOff = false;
-  //_onoffMethod = onoff_toggle;
   _skipCGATT = false;
   _changedSkipCGATT = false;
+
   _productId = prodid_unknown;
 }
-
-#if 0
-bool GPRSbeeClass::on()
-{
-  switch (_onoffMethod) {
-  case onoff_mbili_jp2:
-    onSwitchMbiliJP2();
-    break;
-  case onoff_ndogo_sim800:
-    onSwitchNdogoSIM800();
-    break;
-  case onoff_autonomo_sim800:
-    onSwitchAutonomoSIM800();
-    break;
-  default:
-    // The old-fashioned way, just toggle
-    onToggle();
-    break;
-  }
-
-  // Make sure it responds
-  if (!isAlive()) {
-    // Oh, no answer, maybe it's off
-    // Fall through and rely on the cts pin
-  } else {
-    // It's alive, it answered with an OK
-    // Switch off URC (Unsolicited Result Code)
-    disableCIURC();
-  }
-  return isOn();
-}
-
-bool GPRSbeeClass::off()
-{
-  switch (_onoffMethod) {
-  case onoff_mbili_jp2:
-    offSwitchMbiliJP2();
-    break;
-  case onoff_ndogo_sim800:
-    offSwitchNdogoSIM800();
-    break;
-  case onoff_autonomo_sim800:
-    offSwitchAutonomoSIM800();
-    break;
-  default:
-    // The old-fashioned way, just toggle
-    offToggle();
-    break;
-  }
-
-  _echoOff = false;
-  return !isOn();
-}
-
-/*
- * Switch GPRSbee on via the toggle method
- *
- * The toggle method is to start with a low on DTR, then
- * set pin DTR high for about 2-3 seconds and then set pin DTR
- * low again.
- *
- * The same toggle is used to switch it off.
- */
-void GPRSbeeClass::onToggle()
-{
-  if (!isOn()) {
-    toggle();
-  }
-}
-
-void GPRSbeeClass::offToggle()
-{
-  if (isOn()) {
-    toggle();
-    // There should be a message "NORMAL POWER DOWN"
-    // Shall we wait for it?
-    uint32_t ts_max = millis() + 4000;
-    if (waitForMessage_P(PSTR("NORMAL POWER DOWN"), ts_max)) {
-      // OK. The SIM900 is switched off
-    } else {
-      // Should we care if it didn't?
-    }
-    // Wait a little longer to give the SIM900 time to really switch off.
-    mydelay(500);
-  }
-}
-
-/*!
- * \brief Switch GPRSbee on via the switched power connection of SODAQ Mbili (JP2)
- *
- * The SODAQ Mbili has an extra connector, JP2, which is switched via port D23.
- * This JP2 must be connected to one of the two power connectors of GPRSbee
- * and the battery must be connected directly to JP6 of Mbili.
- *
- * To use this feature you must also set the OnOff mode like this:
- *     gprsbee.setPowerSwitchedOnOff(true);
- */
-void GPRSbeeClass::onSwitchMbiliJP2()
-{
-  diagPrintLn(F("on powerPin"));
-  digitalWrite(_powerPin, HIGH);
-  // Wait maximum 10 seconds for it to switch on.
-  for (uint8_t i = 0; i < 10 && !isOn(); ++i) {
-    mydelay(1000);
-  }
-}
-
-/*!
- * \brief Switch GPRSbee of via the switched power connection of SODAQ Mbili (JP2)
- */
-void GPRSbeeClass::offSwitchMbiliJP2()
-{
-  diagPrintLn(F("off powerPin"));
-  digitalWrite(_powerPin, LOW);
-  // Should be instant
-  // Let's wait a little, but not too long
-  mydelay(500);
-}
-
-/*!
- * \brief Switch SIM800 on via SIM800VBAT and SIM800PWRKEY
- *
- * Although the documentation says we must toggle the PWRKEY we found
- * out that we can simply set PWRKEY HIGH before switching on the power.
- */
-void GPRSbeeClass::onSwitchNdogoSIM800()
-{
-  if (!isOn()) {
-    diagPrintLn(F("on powerPin, vbatPin"));
-    // First PWRKEY HIGH
-    digitalWrite(_powerPin, HIGH);
-    // Wait a little
-    // TODO Figure out if this is really needed
-    delay(2);
-    digitalWrite(_vbatPin, HIGH);
-    // Should be instant
-    // Let's wait, but how long?
-    mydelay(2500);
-    digitalWrite(_powerPin, LOW);
-  }
-}
-
-/*!
- * brief Switch SIM800 off via SIM800VBAT and SIM800PWRKEY
- */
-void GPRSbeeClass::offSwitchNdogoSIM800()
-{
-  if (isOn()) {
-    diagPrintLn(F("off vbatPin"));
-    // TODO We could do a toggle and let the device do a
-    // graceful shutdown.
-    // offToggle()
-    digitalWrite(_vbatPin, LOW);
-    // Should be instant
-    // Let's wait a little, but not too long
-    mydelay(50);
-  }
-}
-
-/*!
- * \brief Switch on GPRSbee (rev6) SIM800 connected to the Autonomo
- *
- * The first thing to do is to switch on the BEE_VCC.
- * Next we switch on the DTR, which powers up the SIM800 and it
- * makes PWRKEY HIGH.
- */
-void GPRSbeeClass::onSwitchAutonomoSIM800()
-{
-  if (!isOn()) {
-    diagPrintLn(F("on powerPin, vbatPin"));
-    // First PWRKEY HIGH
-    digitalWrite(_powerPin, HIGH);
-    // Wait a little
-    // TODO Figure out if this is really needed
-    delay(2);
-    digitalWrite(_vbatPin, HIGH);
-  }
-}
-
-/*!
- * brief Switch SIM800 off via BEE_VCC and SIM800PWRKEY
- */
-void GPRSbeeClass::offSwitchAutonomoSIM800()
-{
-  if (isOn()) {
-    diagPrintLn(F("off powerPin"));
-    digitalWrite(_powerPin, LOW);
-    // The GPRSbee is switched off immediately
-    diagPrintLn(F("off vbatPin"));
-    digitalWrite(_vbatPin, LOW);
-    // Should be instant
-    // Let's wait a little, but not too long
-    mydelay(50);
-  }
-}
-
-bool GPRSbeeClass::isOn()
-{
-  bool status = digitalRead(_statusPin);
-  return status;
-}
-
-void GPRSbeeClass::toggle()
-{
-#if 1
-  // To be on the safe side, make sure we start from LOW
-  // TODO Decide if this is useful.
-  digitalWrite(_powerPin, LOW);
-  mydelay(200);
-#endif
-  digitalWrite(_powerPin, HIGH);
-  mydelay(2500);
-  digitalWrite(_powerPin, LOW);
-}
-#endif
 
 bool GPRSbeeClass::isAlive()
 {
@@ -443,7 +140,7 @@ void GPRSbeeClass::flushInput()
  */
 int GPRSbeeClass::readLine(uint32_t ts_max)
 {
-  if (_SIM900_buffer == NULL) {
+  if (_inputBuffer == NULL) {
     return -1;
   }
 
@@ -479,8 +176,8 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
       goto ok;
     } else {
       // Any other character is stored in the line buffer
-      if (bufcnt < (_bufSize - 1)) {    // Leave room for the terminating NUL
-        _SIM900_buffer[bufcnt++] = c;
+      if (bufcnt < (_inputBufferSize - 1)) {    // Leave room for the terminating NUL
+        _inputBuffer[bufcnt++] = c;
       }
     }
   }
@@ -489,8 +186,8 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
   return -1;            // This indicates: timed out
 
 ok:
-  _SIM900_buffer[bufcnt] = 0;     // Terminate with NUL byte
-  //diagPrint(F(" ")); diagPrintLn(_SIM900_buffer);
+  _inputBuffer[bufcnt] = 0;     // Terminate with NUL byte
+  //diagPrint(F(" ")); diagPrintLn(_inputBuffer);
   return bufcnt;
 
 }
@@ -537,10 +234,10 @@ bool GPRSbeeClass::waitForOK(uint16_t timeout)
       // Skip empty lines
       continue;
     }
-    if (strcmp_P(_SIM900_buffer, PSTR("OK")) == 0) {
+    if (strcmp_P(_inputBuffer, PSTR("OK")) == 0) {
       return true;
     }
-    else if (strcmp_P(_SIM900_buffer, PSTR("ERROR")) == 0) {
+    else if (strcmp_P(_inputBuffer, PSTR("ERROR")) == 0) {
       return false;
     }
     // Other input is skipped.
@@ -557,7 +254,7 @@ bool GPRSbeeClass::waitForMessage(const char *msg, uint32_t ts_max)
       // Skip empty lines
       continue;
     }
-    if (strncmp(_SIM900_buffer, msg, strlen(msg)) == 0) {
+    if (strncmp(_inputBuffer, msg, strlen(msg)) == 0) {
       return true;
     }
   }
@@ -572,7 +269,7 @@ bool GPRSbeeClass::waitForMessage_P(const char *msg, uint32_t ts_max)
       // Skip empty lines
       continue;
     }
-    if (strncmp_P(_SIM900_buffer, msg, strlen_P(msg)) == 0) {
+    if (strncmp_P(_inputBuffer, msg, strlen_P(msg)) == 0) {
       return true;
     }
   }
@@ -588,10 +285,10 @@ int GPRSbeeClass::waitForMessages(PGM_P msgs[], size_t nrMsgs, uint32_t ts_max)
       // Skip empty lines
       continue;
     }
-    //diagPrint(F(" checking \"")); diagPrint(_SIM900_buffer); diagPrintLn("\"");
+    //diagPrint(F(" checking \"")); diagPrint(_inputBuffer); diagPrintLn("\"");
     for (size_t i = 0; i < nrMsgs; ++i) {
       //diagPrint(F("  checking \"")); diagPrint(msgs[i]); diagPrintLn("\"");
-      if (strcmp_P(_SIM900_buffer, msgs[i]) == 0) {
+      if (strcmp_P(_inputBuffer, msgs[i]) == 0) {
         //diagPrint(F("  found i=")); diagPrint((int)i); diagPrintLn("");
         return i;
       }
@@ -747,7 +444,7 @@ bool GPRSbeeClass::getIntValue(const char *cmd, const char *reply, int * value, 
 
   // First we expect the reply
   if (waitForMessage(reply, ts_max)) {
-    const char *ptr = _SIM900_buffer + strlen(reply);
+    const char *ptr = _inputBuffer + strlen(reply);
     char *bufend;
     *value = strtoul(ptr, &bufend, 0);
     if (bufend == ptr) {
@@ -766,7 +463,7 @@ bool GPRSbeeClass::getIntValue_P(const char *cmd, const char *reply, int * value
 
   // First we expect the reply
   if (waitForMessage_P(reply, ts_max)) {
-    const char *ptr = _SIM900_buffer + strlen_P(reply);
+    const char *ptr = _inputBuffer + strlen_P(reply);
     char *bufend;
     *value = strtoul(ptr, &bufend, 0);
     if (bufend == ptr) {
@@ -802,7 +499,7 @@ bool GPRSbeeClass::getStrValue(const char *cmd, const char *reply, char * str, s
   sendCommand(cmd);
 
   if (waitForMessage(reply, ts_max)) {
-    const char *ptr = _SIM900_buffer + strlen(reply);
+    const char *ptr = _inputBuffer + strlen(reply);
     // Strip leading white space
     while (*ptr != '\0' && *ptr == ' ') {
       ++ptr;
@@ -820,7 +517,7 @@ bool GPRSbeeClass::getStrValue_P(const char *cmd, const char *reply, char * str,
   sendCommand_P(cmd);
 
   if (waitForMessage_P(reply, ts_max)) {
-    const char *ptr = _SIM900_buffer + strlen_P(reply);
+    const char *ptr = _inputBuffer + strlen_P(reply);
     // Strip leading white space
     while (*ptr != '\0' && *ptr == ' ') {
       ++ptr;
@@ -860,7 +557,7 @@ bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_
       // Skip empty lines
       continue;
     }
-    strncpy(str, _SIM900_buffer, size - 1);
+    strncpy(str, _inputBuffer, size - 1);
     str[size - 1] = '\0';               // Terminate, just to be sure
     break;
   }
@@ -870,6 +567,34 @@ bool GPRSbeeClass::getStrValue(const char *cmd, char * str, size_t size, uint32_
   }
   // Wait for "OK"
   return waitForOK();
+}
+
+// Sets the apn, apn username and apn password to the modem.
+bool GPRSbeeClass::sendAPN(const char* apn, const char* username, const char* password)
+{
+    return false;
+}
+
+// Turns on and initializes the modem, then connects to the network and activates the data connection.
+bool GPRSbeeClass::connect(const char* simPin, const char* apn, const char* username, const char* password,
+        AuthorizationTypes authorization)
+{
+    // TODO
+    return false;
+}
+
+// Returns true if the modem is connected to the network and has an activated data connection.
+bool GPRSbeeClass::isConnected()
+{
+    // TODO
+    return false;
+}
+
+// Disconnects the modem from the network.
+bool GPRSbeeClass::disconnect()
+{
+    // TODO
+    return false;
 }
 
 /*!
@@ -933,7 +658,7 @@ bool GPRSbeeClass::waitForCREG()
     // 5 = Registered, roaming
     value = 0;
     if (waitForMessage_P(PSTR("+CREG:"), millis() + 12000)) {
-      const char *ptr = strchr(_SIM900_buffer, ',');
+      const char *ptr = strchr(_inputBuffer, ',');
       if (ptr) {
         ++ptr;
         value = strtoul(ptr, NULL, 0);
@@ -1171,7 +896,7 @@ bool GPRSbeeClass::isTCPConnected()
   if (!waitForMessage_P(PSTR("STATE:"), ts_max)) {
     goto end;
   }
-  ptr = _SIM900_buffer + 6;
+  ptr = _inputBuffer + 6;
   ptr = skipWhiteSpace(ptr);
   // Look at the state
   if (strcmp_P(ptr, PSTR("CONNECT OK")) != 0) {
@@ -1271,7 +996,7 @@ bool GPRSbeeClass::receiveLineTCP(const char **buffer, uint16_t timeout)
   if (readLine(ts_max) < 0) {
     goto ending;
   }
-  *buffer = _SIM900_buffer;
+  *buffer = _inputBuffer;
   retval = true;
 
 ending:
@@ -1389,7 +1114,7 @@ bool GPRSbeeClass::openFTPfile(const char *fname, const char *path)
         continue;
       }
       // Skip 8 for "+FTPPUT:"
-      ptr = _SIM900_buffer + 8;
+      ptr = _inputBuffer + 8;
       ptr = skipWhiteSpace(ptr);
       if (strncmp_P(ptr, PSTR("1,"), 2) != 0) {
         // We did NOT get "+FTPPUT:1,1,", it might be an error.
@@ -1512,7 +1237,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
   ts_max = millis() + 10000;
   // +FTPPUT:2,22
   if (!waitForMessage_P(PSTR("+FTPPUT:"), ts_max)) {
-    ptr = _SIM900_buffer + 8;
+    ptr = _inputBuffer + 8;
     if (strncmp_P(ptr, PSTR("2,"), 2) != 0) {
       // We did NOT get "+FTPPUT:2,", it might be an error.
       return false;
@@ -1813,7 +1538,7 @@ bool GPRSbeeClass::doHTTPREAD(char *buffer, size_t len)
   sendCommand_P(PSTR("AT+HTTPREAD"));
   ts_max = millis() + 8000;
   if (waitForMessage_P(PSTR("+HTTPREAD:"), ts_max)) {
-    const char *ptr = _SIM900_buffer + 10;
+    const char *ptr = _inputBuffer + 10;
     char *bufend;
     getLength = strtoul(ptr, &bufend, 0);
     if (bufend == ptr) {
@@ -1868,7 +1593,7 @@ bool GPRSbeeClass::doHTTPACTION(char num)
     // SIM800 responds with: "+HTTPACTION: 1,200,11"
     // The 12 is the length of "+HTTPACTION:"
     // We then have to skip the digit and the comma
-    const char *ptr = _SIM900_buffer + 12;
+    const char *ptr = _inputBuffer + 12;
     ptr = skipWhiteSpace(ptr);
     ++ptr;              // The digit
     ++ptr;              // The comma
