@@ -24,6 +24,8 @@
 #include <Arduino.h>
 #include <Stream.h>
 
+#include "Sodaq_GSM_Modem.h"
+
 // Comment this line, or make it an undef to disable
 // diagnostic
 #define ENABLE_GPRSBEE_DIAG     1
@@ -94,18 +96,18 @@ private:
   int8_t        _tz;            // timezone (multiple of 15 minutes)
 };
 
-class GPRSbeeClass
+class GPRSbeeClass : public Sodaq_GSM_Modem
 {
 public:
   void init(Stream &stream, int ctsPin, int powerPin,
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
   void initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
-  void initAutonomoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
+  void initAutonomoSIM800(Stream &stream, int vcc33Pin, int onoffPin, int statusPin,
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
-  bool on();
-  bool off();
-  void setPowerSwitchedOnOff(bool x) { _onoffMethod = onoff_mbili_jp2; }
+  //bool on();
+  //bool off();
+  //void setPowerSwitchedOnOff(bool x) { _onoffMethod = onoff_mbili_jp2; }
   void setDiag(Stream &stream) { _diagStream = &stream; }
   void setDiag(Stream *stream) { _diagStream = stream; }
 
@@ -162,6 +164,80 @@ public:
   bool closeFTPfile();
 
   bool sendSMS(const char *telno, const char *text);
+
+  /////////////////////
+  // Sodaq_GSM_Modem //
+  /////////////////////
+  bool init(Stream& stream, const char* simPin = NULL, const char* apn = NULL, const char* username = NULL,
+          const char* password = NULL, AuthorizationTypes authorization = AutoDetectAutorization) { return false; }
+  uint32_t getDefaultBaudrate() { return 0; }
+
+  bool setAPN(const char* apn) { return false; }
+  bool setAPNUsername(const char* username) { return false; }
+  bool setAPNPassword(const char* password) { return false; }
+
+  bool join(const char* apn = NULL, const char* username = NULL,
+                    const char* password = NULL, AuthorizationTypes authorization = AutoDetectAutorization) { return false; }
+
+  bool disconnect() { return false; }
+
+  NetworkRegistrationStatuses getNetworkStatus() { return UnknownNetworkRegistrationStatus; }
+
+  NetworkTechnologies getNetworkTechnology() { return UnknownNetworkTechnology; }
+
+  // Get the Received Signal Strength Indication and Bit Error Rate
+  bool getRSSIAndBER(int8_t* rssi, uint8_t* ber) { return false; }
+
+  // Get the Operator Name
+  bool getOperatorName(char* buffer, size_t size) { return false; }
+
+  // Get Mobile Directory Number
+  bool getMobileDirectoryNumber(char* buffer, size_t size) { return false; }
+
+  // Get International Mobile Station Identity
+  bool getIMSI(char* buffer, size_t size) { return false; }
+
+  // Get SIM status
+  SimStatuses getSimStatus() { return SimStatusUnknown; }
+
+  // Get IP Address
+  IP_t getLocalIP() { return 0; }
+
+  // Get Host IP
+  IP_t getHostIP(const char* host) { return 0; }
+
+  // Sockets
+  int createSocket(Protocols protocol, uint16_t localPort = 0) { return false; }
+  bool connectSocket(uint8_t socket, const char* host, uint16_t port) { return false; }
+  bool socketSend(uint8_t socket, const char* buffer, size_t size) { return false; }
+  size_t socketReceive(uint8_t socket, char* buffer, size_t size) { return 0; } // returns number of bytes set to buffer
+  bool closeSocket(uint8_t socket) { return false; }
+
+  // HTTP
+  size_t httpRequest(const char* url, uint16_t port,
+          const char* endpoint, HttpRequestTypes requestType = GET,
+          char* responseBuffer = NULL, size_t responseSize = 0,
+          const char* sendBuffer = NULL, size_t sendSize = 0) { return 0; }
+
+  // FTP
+  bool openFtpConnection(const char* server, const char* username, const char* password, FtpModes ftpMode) { return false; }
+  bool closeFtpConnection() { return false; }
+  bool openFtpFile(const char* filename, const char* path = NULL) { return false; }
+  bool ftpSend(const char* buffer) { return false; }
+  int ftpReceive(char* buffer, size_t size) { return 0; }
+  bool closeFtpFile() { return false; }
+
+  // SMS
+  int getSmsList(const char* statusFilter = "ALL", int* indexList = NULL, size_t size = 0) { return 0; }
+  bool readSms(uint8_t index, char* phoneNumber, char* buffer, size_t size) { return false; }
+  bool deleteSms(uint8_t index) { return false; }
+  bool sendSms(const char* phoneNumber, const char* buffer) { return false; }
+
+  // MQTT (using this class as a transport)
+  bool openMQTT(const char * server, uint16_t port = 1883);
+  bool closeMQTT(bool switchOff=true);
+  bool sendMQTTPacket(uint8_t * pckt, size_t len);
+  bool receiveMQTTPacket(uint8_t * pckt, size_t expected_len);
 
   bool getIMEI(char *buffer, size_t buflen);
   bool getGCAP(char *buffer, size_t buflen);
@@ -250,6 +326,9 @@ private:
   bool sendFTPdata_low(uint8_t *buffer, size_t size);
   bool sendFTPdata_low(uint8_t (*read)(), size_t size);
 
+  ResponseTypes readResponse(char* buffer, size_t size, size_t* outSize,
+          uint32_t timeout = DEFAULT_READ_MS) { return ResponseNotFound; }
+
   enum onoffKind {
     onoff_toggle,
     onoff_mbili_jp2,
@@ -258,8 +337,8 @@ private:
   };
   char * _SIM900_buffer;
   size_t _bufSize;
-  Stream *_myStream;
-  Stream *_diagStream;
+  //Stream *_myStream;
+  //Stream *_diagStream;
   int8_t _statusPin;
   int8_t _powerPin;
   int8_t _vbatPin;
@@ -267,7 +346,7 @@ private:
   size_t _ftpMaxLength;
   bool _transMode;
   bool _echoOff;
-  enum onoffKind _onoffMethod;
+  //enum onoffKind _onoffMethod;
   bool _skipCGATT;
   bool _changedSkipCGATT;		// This is set when the user has changed it.
   uint8_t _lastCSQ;

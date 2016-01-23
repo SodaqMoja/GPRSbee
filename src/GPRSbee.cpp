@@ -39,6 +39,25 @@
 #endif
 
 
+// A specialized class to switch on/off the GPRSbee module
+// The VCC3.3 pin is switched by the Autonomo BEE_VCC pin
+// The DTR pin is the actual ON/OFF pin, it is A13 on Autonomo, D20 on Tatu
+class GPRSbeeOnOff : public Sodaq_OnOffBee
+{
+public:
+    GPRSbeeOnOff();
+    void init(int vcc33Pin, int onoffPin, int statusPin);
+    void on();
+    void off();
+    bool isOn();
+private:
+    int8_t _vcc33Pin;
+    int8_t _onoffPin;
+    int8_t _statusPin;
+};
+
+static GPRSbeeOnOff gprsbee_onoff;
+
 GPRSbeeClass gprsbee;
 
 /*
@@ -97,6 +116,7 @@ void GPRSbeeClass::initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, i
     int bufferSize)
 {
   initProlog(stream, bufferSize);
+#if 0
   _onoffMethod = onoff_ndogo_sim800;
 
   if (pwrkeyPin >= 0) {
@@ -117,12 +137,17 @@ void GPRSbeeClass::initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, i
     _statusPin = statusPin;
     pinMode(_statusPin, INPUT);
   }
+#endif
 }
 
-void GPRSbeeClass::initAutonomoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
+void GPRSbeeClass::initAutonomoSIM800(Stream &stream, int vcc33Pin, int onoffPin, int statusPin,
     int bufferSize)
 {
   initProlog(stream, bufferSize);
+
+  gprsbee_onoff.init(vcc33Pin, onoffPin, statusPin);
+  _onoff = &gprsbee_onoff;
+#if 0
   _onoffMethod = onoff_autonomo_sim800;
 
   if (pwrkeyPin >= 0) {
@@ -143,14 +168,16 @@ void GPRSbeeClass::initAutonomoSIM800(Stream &stream, int pwrkeyPin, int vbatPin
     _statusPin = statusPin;
     pinMode(_statusPin, INPUT);
   }
+#endif
 }
 
 void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
 {
   _bufSize = bufferSize;
   _SIM900_buffer = (char *)malloc(_bufSize);
-  _myStream = &stream;
-  _diagStream = 0;
+  //_myStream = &stream;
+  _modemStream = &stream;       // TODO This should go through Sodaq_GSM_Modem initializer
+  //_diagStream = 0;
   _statusPin = -1;
   _powerPin = -1;
   _vbatPin = -1;
@@ -158,12 +185,13 @@ void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
   _ftpMaxLength = 0;
   _transMode = false;
   _echoOff = false;
-  _onoffMethod = onoff_toggle;
+  //_onoffMethod = onoff_toggle;
   _skipCGATT = false;
   _changedSkipCGATT = false;
   _productId = prodid_unknown;
 }
 
+#if 0
 bool GPRSbeeClass::on()
 {
   switch (_onoffMethod) {
@@ -376,6 +404,7 @@ void GPRSbeeClass::toggle()
   mydelay(2500);
   digitalWrite(_powerPin, LOW);
 }
+#endif
 
 bool GPRSbeeClass::isAlive()
 {
@@ -404,7 +433,7 @@ void GPRSbeeClass::switchEchoOff()
 void GPRSbeeClass::flushInput()
 {
   int c;
-  while ((c = _myStream->read()) >= 0) {
+  while ((c = _modemStream->read()) >= 0) {
     diagPrint((char)c);
   }
 }
@@ -428,7 +457,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
   while (!isTimedOut(ts_max)) {
     wdt_reset();
     if (seenCR) {
-      c = _myStream->peek();
+      c = _modemStream->peek();
       // ts_waitLF is guaranteed to be non-zero
       if ((c == -1 && isTimedOut(ts_waitLF)) || (c != -1 && c != '\n')) {
         //diagPrint(F("readLine:  peek '")); diagPrint(c); diagPrintLn('\'');
@@ -438,7 +467,7 @@ int GPRSbeeClass::readLine(uint32_t ts_max)
       // Only \n should fall through
     }
 
-    c = _myStream->read();
+    c = _modemStream->read();
     if (c < 0) {
       continue;
     }
@@ -481,7 +510,7 @@ int GPRSbeeClass::readBytes(size_t len, uint8_t *buffer, size_t buflen, uint32_t
   //diagPrintLn(F("readBytes"));
   while (!isTimedOut(ts_max) && len > 0) {
     wdt_reset();
-    int c = _myStream->read();
+    int c = _modemStream->read();
     if (c < 0) {
       continue;
     }
@@ -586,7 +615,7 @@ bool GPRSbeeClass::waitForPrompt(const char *prompt, uint32_t ts_max)
       break;
     }
 
-    int c = _myStream->read();
+    int c = _modemStream->read();
     if (c < 0) {
       continue;
     }
@@ -630,27 +659,27 @@ void GPRSbeeClass::sendCommandProlog()
 void GPRSbeeClass::sendCommandAdd(char c)
 {
   diagPrint(c);
-  _myStream->print(c);
+  _modemStream->print(c);
 }
 void GPRSbeeClass::sendCommandAdd(int i)
 {
   diagPrint(i);
-  _myStream->print(i);
+  _modemStream->print(i);
 }
 void GPRSbeeClass::sendCommandAdd(const char *cmd)
 {
   diagPrint(cmd);
-  _myStream->print(cmd);
+  _modemStream->print(cmd);
 }
 void GPRSbeeClass::sendCommandAdd(const String & cmd)
 {
   diagPrint(cmd);
-  _myStream->print(cmd);
+  _modemStream->print(cmd);
 }
 void GPRSbeeClass::sendCommandAdd_P(const char *cmd)
 {
   diagPrint(reinterpret_cast<const __FlashStringHelper *>(cmd));
-  _myStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
+  _modemStream->print(reinterpret_cast<const __FlashStringHelper *>(cmd));
 }
 
 /*
@@ -659,7 +688,7 @@ void GPRSbeeClass::sendCommandAdd_P(const char *cmd)
 void GPRSbeeClass::sendCommandEpilog()
 {
   diagPrintLn();
-  _myStream->print('\r');
+  _modemStream->print('\r');
 }
 
 void GPRSbeeClass::sendCommand(const char *cmd)
@@ -1095,7 +1124,7 @@ void GPRSbeeClass::closeTCP(bool switchOff)
   // Maybe we should do AT+CIPCLOSE=1
   if (_transMode) {
     mydelay(1000);
-    _myStream->print(F("+++"));
+    _modemStream->print(F("+++"));
     mydelay(500);
     // TODO Will the SIM900 answer with "OK"?
   }
@@ -1123,7 +1152,7 @@ bool GPRSbeeClass::isTCPConnected()
   if (_transMode) {
     // We need to send +++
     mydelay(1000);
-    _myStream->print(F("+++"));
+    _modemStream->print(F("+++"));
     mydelay(500);
     if (!waitForOK()) {
       goto end;
@@ -1184,7 +1213,7 @@ bool GPRSbeeClass::sendDataTCP(const uint8_t *data, size_t data_len)
   mydelay(50);          // TODO Why do we need this?
   // Send the data
   for (size_t i = 0; i < data_len; ++i) {
-    _myStream->print((char)*data++);
+    _modemStream->print((char)*data++);
   }
   //
   ts_max = millis() + 4000;             // Is this enough?
@@ -1214,9 +1243,9 @@ bool GPRSbeeClass::receiveDataTCP(uint8_t *data, size_t data_len, uint16_t timeo
   //diagPrintLn(F("receiveDataTCP"));
   ts_max = millis() + timeout;
   while (data_len > 0 && !isTimedOut(ts_max)) {
-    if (_myStream->available() > 0) {
+    if (_modemStream->available() > 0) {
       uint8_t b;
-      b = _myStream->read();
+      b = _modemStream->read();
       *data++ = b;
       --data_len;
     }
@@ -1444,9 +1473,9 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t *buffer, size_t size)
 
   // Send data ...
   for (size_t i = 0; i < size; ++i) {
-    _myStream->print((char)*ptr++);
+    _modemStream->print((char)*ptr++);
   }
-  //_myStream->print('\r');          // dummy <CR>, not sure if this is needed
+  //_modemStream->print('\r');          // dummy <CR>, not sure if this is needed
 
   // Expected reply:
   // +FTPPUT:2,22
@@ -1497,7 +1526,7 @@ bool GPRSbeeClass::sendFTPdata_low(uint8_t (*read)(), size_t size)
 
   // Send data ...
   for (size_t i = 0; i < size; ++i) {
-    _myStream->print((char)(*read)());
+    _modemStream->print((char)(*read)());
   }
 
   // Expected reply:
@@ -1589,8 +1618,8 @@ bool GPRSbeeClass::sendSMS(const char *telno, const char *text)
   if (!waitForPrompt("> ", ts_max)) {
     goto cmd_error;
   }
-  _myStream->print(text); //the message itself
-  _myStream->print((char)26); //the ASCII code of ctrl+z is 26, this is needed to end the send modus and send the message.
+  _modemStream->print(text); //the message itself
+  _modemStream->print((char)26); //the ASCII code of ctrl+z is 26, this is needed to end the send modus and send the message.
   if (!waitForOK(30000)) {
     goto cmd_error;
   }
@@ -1643,7 +1672,7 @@ bool GPRSbeeClass::doHTTPPOSTmiddle(const char *url, const char *buffer, size_t 
 
   // Send data ...
   for (size_t i = 0; i < len; ++i) {
-    _myStream->print(*buffer++);
+    _modemStream->print(*buffer++);
   }
 
   if (!waitForOK()) {
@@ -2498,4 +2527,111 @@ void SIMDateTime::addToString(String & str) const
   str += ':';
   add0Nd(str, _ss, 2);
   str += "+00";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////    MQTT               /////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+bool GPRSbeeClass::openMQTT(const char * server, uint16_t port)
+{
+    if (!on()) {
+        return false;
+    }
+    if (!networkOn()) {
+        return false;
+    }
+    return openTCP(_apn, _apnUser, _apnPass, server, port);
+}
+
+bool GPRSbeeClass::closeMQTT(bool switchOff)
+{
+    closeTCP(switchOff);
+    return true;        // Always succeed
+}
+
+bool GPRSbeeClass::sendMQTTPacket(uint8_t * pckt, size_t len)
+{
+    return sendDataTCP(pckt, len);
+}
+
+bool GPRSbeeClass::receiveMQTTPacket(uint8_t * pckt, size_t expected_len)
+{
+    return receiveDataTCP(pckt, expected_len);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////    GPRSbeeOnOff       /////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+GPRSbeeOnOff::GPRSbeeOnOff()
+{
+    _vcc33Pin = -1;
+    _onoffPin = -1;
+    _statusPin = -1;
+}
+
+// Initializes the instance
+void GPRSbeeOnOff::init(int vcc33Pin, int onoffPin, int statusPin)
+{
+    if (vcc33Pin >= 0) {
+      _vcc33Pin = vcc33Pin;
+      // First write the output value, and only then set the output mode.
+      digitalWrite(_vcc33Pin, LOW);
+      pinMode(_vcc33Pin, OUTPUT);
+    }
+
+    if (onoffPin >= 0) {
+      _onoffPin = onoffPin;
+      // First write the output value, and only then set the output mode.
+      digitalWrite(_onoffPin, LOW);
+      pinMode(_onoffPin, OUTPUT);
+    }
+
+    if (statusPin >= 0) {
+      _statusPin = statusPin;
+      pinMode(_statusPin, INPUT);
+    }
+}
+
+void GPRSbeeOnOff::on()
+{
+    // First VCC 3.3 HIGH
+    if (_vcc33Pin >= 0) {
+        digitalWrite(_vcc33Pin, HIGH);
+    }
+
+    // Wait a little
+    // TODO Figure out if this is really needed
+    delay(2);
+    if (_onoffPin >= 0) {
+        digitalWrite(_onoffPin, HIGH);
+    }
+}
+
+void GPRSbeeOnOff::off()
+{
+    if (_vcc33Pin >= 0) {
+        digitalWrite(_vcc33Pin, LOW);
+    }
+
+    // The GPRSbee is switched off immediately
+    if (_onoffPin >= 0) {
+        digitalWrite(_onoffPin, LOW);
+    }
+
+    // Should be instant
+    // Let's wait a little, but not too long
+    delay(50);
+}
+
+bool GPRSbeeOnOff::isOn()
+{
+    if (_statusPin >= 0) {
+        bool status = digitalRead(_statusPin);
+        return status;
+    }
+
+    // No status pin. Let's assume it is on.
+    return true;
 }
