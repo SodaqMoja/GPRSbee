@@ -109,65 +109,6 @@ typedef uint32_t IP_t;
 
 class Sodaq_3GbeeOnOff;
 class Sodaq_GSM_Modem {
-protected:
-    // The stream that communicates with the device.
-    Stream* _modemStream;
-
-    // The (optional) stream to show debug information.
-    Stream* _diagStream;
-
-    // The size of the input buffer. Equals SODAQ_GSM_MODEM_DEFAULT_INPUT_BUFFER_SIZE
-    // by default or (optionally) a user-defined value when using USE_DYNAMIC_BUFFER.
-    size_t _inputBufferSize;
-
-    // Flag to make sure the buffers are not allocated more than once.
-    bool _isBufferInitialized;
-
-    char* _inputBuffer;
-
-    char * _apn;
-    char * _apnUser;
-    char * _apnPass;
-
-    uint32_t _timeout;
-
-    Sodaq_OnOffBee * _onoff;
-
-    BaudRateChangeCallbackPtr _baudRateChangeCallbackPtr;
-
-    // initializes the input buffer and makes sure it is only initialized once. Safe to call multiple times.
-    void initBuffer();
-
-    bool isOn();
-
-    void setModemStream(Stream& stream);
-    
-    int timedRead() const;
-
-    size_t readBytesUntil(char terminator, char * buffer, size_t length);
-
-    size_t readBytes(char * buffer, size_t length);
-
-    // Reads a line from the device stream into the "buffer" starting at the "start" position of the buffer.
-    // Returns the number of bytes read.
-    size_t readLn(char* buffer, size_t size, long timeout = DEFAULT_TIMEOUT);
-
-    // Reads a line from the device stream into the input buffer.
-    // Returns the number of bytes read.
-    size_t readLn() { return readLn(_inputBuffer, _inputBufferSize); };
-
-    size_t write(const char* buffer);
-    size_t write(uint8_t value);
-    size_t write(uint32_t value);
-    size_t write(char value);
-
-    // write with terminator
-    size_t writeLn(const char* buffer);
-    size_t writeLn(uint8_t value);
-    size_t writeLn(uint32_t value);
-    size_t writeLn(char value);
-
-    virtual ResponseTypes readResponse(char* buffer, size_t size, size_t* outSize, uint32_t timeout = DEFAULT_READ_MS) = 0;
 public:
     // Constructor
     Sodaq_GSM_Modem();
@@ -262,6 +203,65 @@ public:
     virtual bool sendMQTTPacket(uint8_t * pckt, size_t len) = 0;
     virtual bool receiveMQTTPacket(uint8_t * pckt, size_t expected_len) = 0;
 
+protected:
+    // The stream that communicates with the device.
+    Stream* _modemStream;
+
+    // The (optional) stream to show debug information.
+    Stream* _diagStream;
+
+    // The size of the input buffer. Equals SODAQ_GSM_MODEM_DEFAULT_INPUT_BUFFER_SIZE
+    // by default or (optionally) a user-defined value when using USE_DYNAMIC_BUFFER.
+    size_t _inputBufferSize;
+
+    // Flag to make sure the buffers are not allocated more than once.
+    bool _isBufferInitialized;
+
+    char* _inputBuffer;
+
+    char * _apn;
+    char * _apnUser;
+    char * _apnPass;
+
+    uint32_t _timeout;
+
+    Sodaq_OnOffBee * _onoff;
+
+    BaudRateChangeCallbackPtr _baudRateChangeCallbackPtr;
+
+    // initializes the input buffer and makes sure it is only initialized once. Safe to call multiple times.
+    void initBuffer();
+
+    bool isOn();
+
+    void setModemStream(Stream& stream);
+
+    int timedRead() const;
+
+    size_t readBytesUntil(char terminator, char * buffer, size_t length);
+
+    size_t readBytes(char * buffer, size_t length);
+
+    // Reads a line from the device stream into the "buffer" starting at the "start" position of the buffer.
+    // Returns the number of bytes read.
+    size_t readLn(char* buffer, size_t size, long timeout = DEFAULT_TIMEOUT);
+
+    // Reads a line from the device stream into the input buffer.
+    // Returns the number of bytes read.
+    size_t readLn() { return readLn(_inputBuffer, _inputBufferSize); };
+
+    size_t write(const char* buffer);
+    size_t write(uint8_t value);
+    size_t write(uint32_t value);
+    size_t write(char value);
+
+    // write with terminator
+    size_t writeLn(const char* buffer);
+    size_t writeLn(uint8_t value);
+    size_t writeLn(uint32_t value);
+    size_t writeLn(char value);
+
+    virtual ResponseTypes readResponse(char* buffer, size_t size, size_t* outSize, uint32_t timeout = DEFAULT_READ_MS) = 0;
 };
 
 #endif
