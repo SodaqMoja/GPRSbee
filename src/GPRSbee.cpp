@@ -1007,9 +1007,13 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
   strcpy_P(cmdbuf, PSTR("AT+CSTT=\""));
   strcat(cmdbuf, apn);
   strcat(cmdbuf, "\",\"");
-  strcat(cmdbuf, apnuser);
+  if (apnuser) {
+    strcat(cmdbuf, apnuser);
+  }
   strcat(cmdbuf, "\",\"");
-  strcat(cmdbuf, apnpwd);
+  if (apnpwd) {
+    strcat(cmdbuf, apnpwd);
+  }
   strcat(cmdbuf, "\"");
   if (!sendCommandWaitForOK(cmdbuf)) {
     goto cmd_error;
