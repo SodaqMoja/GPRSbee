@@ -26,9 +26,6 @@
 #include <Stream.h>
 #include "Sodaq_OnOffBee.h"
 
-// TODO Add #if defined(), and change the name
-#define DEFAULT_TIMEOUT 1000
-
 // Data authorization type.
 enum AuthorizationTypes {
     NoAuthorization = 0,
@@ -343,9 +340,6 @@ protected:
     char * _apnUser;
     char * _apnPass;
 
-    // The timeout used by the stream helper methods contained in this class (such as timedRead()).
-    uint32_t _timeout;
-
     // The on-off pin power controller object.
     Sodaq_OnOffBee* _onoff;
 
@@ -379,47 +373,59 @@ protected:
     void setModemStream(Stream& stream);
 
     // Returns a character from the modem stream if read within _timeout ms or -1 otherwise.
-    int timedRead() const;
+    int timedRead(uint32_t timeout = 1000) const;
 
     // Fills the given "buffer" with characters read from the modem stream up to "length"
     // maximum characters and until the "terminator" character is found or a character read
     // times out (whichever happens first).
     // The buffer does not contain the "terminator" character or a null terminator explicitly.
     // Returns the number of characters written to the buffer, not including null terminator.
-    size_t readBytesUntil(char terminator, char* buffer, size_t length);
+    size_t readBytesUntil(char terminator, char* buffer, size_t length, uint32_t timeout = 1000);
 
     // Fills the given "buffer" with up to "length" characters read from the modem stream.
-    // It stops when a character read timesout or "length" characters have been read.
+    // It stops when a character read times out or "length" characters have been read.
     // Returns the number of characters written to the buffer.
-    size_t readBytes(uint8_t* buffer, size_t length);
+    size_t readBytes(uint8_t* buffer, size_t length, uint32_t timeout = 1000);
 
     // Reads a line from the modem stream into the "buffer". The line terminator is not
     // written into the buffer. The buffer is terminated with null.
     // Returns the number of bytes read, not including the null terminator.
-    size_t readLn(char* buffer, size_t size, long timeout = DEFAULT_TIMEOUT);
+    size_t readLn(char* buffer, size_t size, uint32_t timeout = 1000);
 
     // Reads a line from the modem stream into the input buffer.
     // Returns the number of bytes read.
     size_t readLn() { return readLn(_inputBuffer, _inputBufferSize); };
 
-    // Methods to write to the modem stream
-    size_t write(const char* buffer);
+    // Write a byte
     size_t writeByte(uint8_t value);
-    size_t write(uint8_t value);
-    size_t write(uint32_t value);
-    size_t write(char value);
-
-    // Methods to write to the modem stream with terminator
-    size_t writeLn(const char* buffer);
-    size_t writeLn(uint8_t value);
-    size_t writeLn(uint32_t value);
-    size_t writeLn(char value);
-
-    // Write the command terminator
-    size_t writeLn();
 
     // Write the command prolog (just for debugging
     void writeProlog();
+
+    size_t print(const __FlashStringHelper *);
+    size_t print(const String &);
+    size_t print(const char[]);
+    size_t print(char);
+    size_t print(unsigned char, int = DEC);
+    size_t print(int, int = DEC);
+    size_t print(unsigned int, int = DEC);
+    size_t print(long, int = DEC);
+    size_t print(unsigned long, int = DEC);
+    size_t print(double, int = 2);
+    size_t print(const Printable&);
+
+    size_t println(const __FlashStringHelper *);
+    size_t println(const String &s);
+    size_t println(const char[]);
+    size_t println(char);
+    size_t println(unsigned char, int = DEC);
+    size_t println(int, int = DEC);
+    size_t println(unsigned int, int = DEC);
+    size_t println(long, int = DEC);
+    size_t println(unsigned long, int = DEC);
+    size_t println(double, int = 2);
+    size_t println(const Printable&);
+    size_t println(void);
 
     virtual ResponseTypes readResponse(char* buffer, size_t size, size_t* outSize, uint32_t timeout = DEFAULT_READ_MS) = 0;
 };

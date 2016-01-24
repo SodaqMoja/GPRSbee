@@ -56,7 +56,6 @@ Sodaq_GSM_Modem::Sodaq_GSM_Modem() :
     _apn(0),
     _apnUser(0),
     _apnPass(0),
-    _timeout(DEFAULT_TIMEOUT),
     _onoff(0),
     _baudRateChangeCallbackPtr(0),
     _appendCommand(false),
@@ -123,38 +122,29 @@ void Sodaq_GSM_Modem::writeProlog()
     }
 }
 
-// TODO is the result really needed?
-size_t Sodaq_GSM_Modem::write(const char* buffer)
-{
-    writeProlog();
-    debugPrint(buffer);
-    
-    return _modemStream->print(buffer);
-}
-
 // Write a byte, as binary data
 size_t Sodaq_GSM_Modem::writeByte(uint8_t value)
 {
     return _modemStream->write(value);
 }
 
-size_t Sodaq_GSM_Modem::write(uint8_t value)
+size_t Sodaq_GSM_Modem::print(const String& buffer)
 {
     writeProlog();
-    debugPrint(value);
+    debugPrint(buffer);
 
-    return _modemStream->print(value);
+    return _modemStream->print(buffer);
 }
 
-size_t Sodaq_GSM_Modem::write(uint32_t value)
+size_t Sodaq_GSM_Modem::print(const char buffer[])
 {
     writeProlog();
-    debugPrint(value);
+    debugPrint(buffer);
 
-    return _modemStream->print(value);
+    return _modemStream->print(buffer);
 }
 
-size_t Sodaq_GSM_Modem::write(char value)
+size_t Sodaq_GSM_Modem::print(char value)
 {
     writeProlog();
     debugPrint(value);
@@ -162,35 +152,122 @@ size_t Sodaq_GSM_Modem::write(char value)
     return _modemStream->print(value);
 };
 
-// TODO is the result really needed?
-size_t Sodaq_GSM_Modem::writeLn(const char* buffer)
+size_t Sodaq_GSM_Modem::print(unsigned char value, int base)
 {
-    size_t i = write(buffer);
-    return i + writeLn();
+    writeProlog();
+    debugPrint(value, base);
+
+    return _modemStream->print(value, base);
+};
+
+size_t Sodaq_GSM_Modem::print(int value, int base)
+{
+    writeProlog();
+    debugPrint(value, base);
+
+    return _modemStream->print(value, base);
+};
+
+size_t Sodaq_GSM_Modem::print(unsigned int value, int base)
+{
+    writeProlog();
+    debugPrint(value, base);
+
+    return _modemStream->print(value, base);
+};
+
+size_t Sodaq_GSM_Modem::print(long value, int base)
+{
+    writeProlog();
+    debugPrint(value, base);
+
+    return _modemStream->print(value, base);
+};
+
+size_t Sodaq_GSM_Modem::print(unsigned long value, int base)
+{
+    writeProlog();
+    debugPrint(value, base);
+
+    return _modemStream->print(value, base);
+};
+
+size_t Sodaq_GSM_Modem::println(const __FlashStringHelper *ifsh)
+{
+    size_t n = print(ifsh);
+    n += println();
+    return n;
 }
 
-size_t Sodaq_GSM_Modem::writeLn(uint8_t value)
+size_t Sodaq_GSM_Modem::println(const String &s)
 {
-    size_t i = write(value);
-    return i + writeLn();
+    size_t n = print(s);
+    n += println();
+    return n;
 }
 
-size_t Sodaq_GSM_Modem::writeLn(uint32_t value)
+size_t Sodaq_GSM_Modem::println(const char c[])
 {
-    size_t i = write(value);
-    return i + writeLn();
+    size_t n = print(c);
+    n += println();
+    return n;
 }
 
-size_t Sodaq_GSM_Modem::writeLn(char value)
+size_t Sodaq_GSM_Modem::println(char c)
 {
-    size_t i = write(value);
-    return i + writeLn();
+    size_t n = print(c);
+    n += println();
+    return n;
 }
 
-size_t Sodaq_GSM_Modem::writeLn()
+size_t Sodaq_GSM_Modem::println(unsigned char b, int base)
+{
+    size_t i = print(b, base);
+    return i + println();
+}
+
+size_t Sodaq_GSM_Modem::println(int num, int base)
+{
+    size_t i = print(num, base);
+    return i + println();
+}
+
+size_t Sodaq_GSM_Modem::println(unsigned int num, int base)
+{
+    size_t i = print(num, base);
+    return i + println();
+}
+
+size_t Sodaq_GSM_Modem::println(long num, int base)
+{
+    size_t i = print(num, base);
+    return i + println();
+}
+
+size_t Sodaq_GSM_Modem::println(unsigned long num, int base)
+{
+    size_t i = print(num, base);
+    return i + println();
+}
+
+size_t Sodaq_GSM_Modem::println(double num, int digits)
+{
+    writeProlog();
+    debugPrint(num, digits);
+
+    return _modemStream->println(num, digits);
+}
+
+size_t Sodaq_GSM_Modem::println(const Printable& x)
+{
+    size_t i = print(x);
+    return i + println();
+}
+
+size_t Sodaq_GSM_Modem::println(void)
 {
     debugPrintLn();
-    size_t i = write('\r');
+    size_t i = print('\r');
     _appendCommand = false;
     return i;
 }
@@ -237,18 +314,18 @@ void Sodaq_GSM_Modem::setApnPass(const char * pass)
 }
 
 // Returns a character from the modem stream if read within _timeout ms or -1 otherwise.
-int Sodaq_GSM_Modem::timedRead() const
+int Sodaq_GSM_Modem::timedRead(uint32_t timeout) const
 {
     int c;
     uint32_t _startMillis = millis();
-    
+
     do {
         c = _modemStream->read();
         if (c >= 0) {
             return c;
         }
-    } while (millis() - _startMillis < _timeout);
-    
+    } while (millis() - _startMillis < timeout);
+
     return -1; // -1 indicates timeout
 }
 
@@ -257,7 +334,7 @@ int Sodaq_GSM_Modem::timedRead() const
 // times out (whichever happens first).
 // The buffer does not contain the "terminator" character or a null terminator explicitly.
 // Returns the number of characters written to the buffer, not including null terminator.
-size_t Sodaq_GSM_Modem::readBytesUntil(char terminator, char* buffer, size_t length)
+size_t Sodaq_GSM_Modem::readBytesUntil(char terminator, char* buffer, size_t length, uint32_t timeout)
 {
     if (length < 1) {
         return 0;
@@ -266,7 +343,7 @@ size_t Sodaq_GSM_Modem::readBytesUntil(char terminator, char* buffer, size_t len
     size_t index = 0;
 
     while (index < length) {
-        int c = timedRead();
+        int c = timedRead(timeout);
 
         if (c < 0 || c == terminator) {
             break;
@@ -282,14 +359,14 @@ size_t Sodaq_GSM_Modem::readBytesUntil(char terminator, char* buffer, size_t len
 }
 
 // Fills the given "buffer" with up to "length" characters read from the modem stream.
-// It stops when a character read timesout or "length" characters have been read.
+// It stops when a character read times out or "length" characters have been read.
 // Returns the number of characters written to the buffer.
-size_t Sodaq_GSM_Modem::readBytes(uint8_t* buffer, size_t length)
+size_t Sodaq_GSM_Modem::readBytes(uint8_t* buffer, size_t length, uint32_t timeout)
 {
     size_t count = 0;
 
     while (count < length) {
-        int c = timedRead();
+        int c = timedRead(timeout);
 
         if (c < 0) {
             break;
@@ -307,10 +384,9 @@ size_t Sodaq_GSM_Modem::readBytes(uint8_t* buffer, size_t length)
 // Reads a line (up to the SODAQ_GSM_TERMINATOR) from the modem stream into the "buffer".
 // The buffer is terminated with null.
 // Returns the number of bytes read, not including the null terminator.
-size_t Sodaq_GSM_Modem::readLn(char* buffer, size_t size, long timeout)
+size_t Sodaq_GSM_Modem::readLn(char* buffer, size_t size, uint32_t timeout)
 {
-    _timeout = timeout;
-    size_t len = readBytesUntil(SODAQ_GSM_TERMINATOR[SODAQ_GSM_TERMINATOR_LEN - 1], buffer, size);
+    size_t len = readBytesUntil(SODAQ_GSM_TERMINATOR[SODAQ_GSM_TERMINATOR_LEN - 1], buffer, size, timeout);
 
     // check if the terminator is more than 1 characters, then check if the first character of it exists 
     // in the calculated position and terminate the string there
