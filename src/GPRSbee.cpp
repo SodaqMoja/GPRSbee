@@ -605,6 +605,9 @@ bool GPRSbeeClass::networkOn()
   bool status;
   status = on();
   if (status) {
+    // Suppress echoing
+    switchEchoOff();
+
     status = waitForSignalQuality();
     if (status) {
       status = waitForCREG();
@@ -684,6 +687,8 @@ bool GPRSbeeClass::waitForCREG()
  */
 bool GPRSbeeClass::connectProlog()
 {
+  // TODO Use networkOn instead of switchEchoOff, waitForSignalQuality, waitForCREG
+
   // Suppress echoing
   switchEchoOff();
 
