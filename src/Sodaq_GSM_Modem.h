@@ -132,7 +132,7 @@ public:
     bool on();
 
     // Turns the modem off and returns true if successful.
-    bool off() const;
+    bool off();
 
     // Sets the optional "Diagnostics and Debug" stream.
     void setDiag(Stream &stream) { _diagStream = &stream; }
@@ -143,7 +143,7 @@ public:
     void setInputBufferSize(size_t value) { this->_inputBufferSize = value; };
 
     // Store APN and user and password
-    void setApn(const char *apn);
+    void setApn(const char *apn, const char *user = NULL, const char *pass = NULL);
     void setApnUser(const char *user);
     void setApnPass(const char *pass);
 
@@ -359,6 +359,9 @@ protected:
     // This is the minimum required CSQ to continue making the connection
     int _minSignalQuality;
 
+    // Keep track if ATE0 was sent
+    bool _echoOff;
+
     // Initializes the input buffer and makes sure it is only initialized once.
     // Safe to call multiple times.
     void initBuffer();
@@ -368,6 +371,8 @@ protected:
 
     // Returns true if the modem is on.
     bool isOn() const;
+
+    virtual void switchEchoOff() = 0;
 
     // Sets the modem stream.
     void setModemStream(Stream& stream);

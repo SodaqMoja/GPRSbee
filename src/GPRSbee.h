@@ -334,7 +334,6 @@ private:
 
   size_t _ftpMaxLength;
   bool _transMode;
-  bool _echoOff;
   bool _skipCGATT;
   bool _changedSkipCGATT;		// This is set when the user has changed it.
   enum productIdKind {
