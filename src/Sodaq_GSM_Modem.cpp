@@ -321,6 +321,13 @@ void Sodaq_GSM_Modem::setApnPass(const char * pass)
     strcpy(_apnPass, pass);
 }
 
+void Sodaq_GSM_Modem::setPin(const char * pin)
+{
+    size_t len = strlen(pin);
+    _pin = static_cast<char*>(realloc(_pin, len + 1));
+    strcpy(_pin, pin);
+}
+
 // Returns a character from the modem stream if read within _timeout ms or -1 otherwise.
 int Sodaq_GSM_Modem::timedRead(uint32_t timeout) const
 {

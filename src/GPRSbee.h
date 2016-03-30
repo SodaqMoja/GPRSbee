@@ -160,16 +160,13 @@ public:
   /////////////////////
   // Sodaq_GSM_Modem //
   /////////////////////
-  bool init(Stream& stream, const char* simPin = NULL, const char* apn = NULL, const char* username = NULL,
-          const char* password = NULL, AuthorizationTypes authorization = AutoDetectAutorization) { return false; }
   uint32_t getDefaultBaudrate() { return 0; }
 
   // Sets the apn, apn username and apn password to the modem.
   bool sendAPN(const char* apn, const char* username, const char* password);
 
   // Turns on and initializes the modem, then connects to the network and activates the data connection.
-  bool connect(const char* simPin, const char* apn, const char* username,
-                    const char* password, AuthorizationTypes authorization = AutoDetectAutorization);
+  bool connect(const char* apn, const char* username, const char* password);
 
   // Disconnects the modem from the network.
   bool disconnect();

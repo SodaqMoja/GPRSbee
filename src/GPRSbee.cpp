@@ -576,8 +576,7 @@ bool GPRSbeeClass::sendAPN(const char* apn, const char* username, const char* pa
 }
 
 // Turns on and initializes the modem, then connects to the network and activates the data connection.
-bool GPRSbeeClass::connect(const char* simPin, const char* apn, const char* username, const char* password,
-        AuthorizationTypes authorization)
+bool GPRSbeeClass::connect(const char* apn, const char* username, const char* password)
 {
     // TODO
     return false;
