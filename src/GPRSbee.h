@@ -267,6 +267,10 @@ public:
   // Using CCLK, get 32-bit number of seconds since Y2K epoch (2000-01-01)
   uint32_t getY2KEpoch() const;
 
+  // Getters of diagnostic values
+  uint32_t getTimeToOpenTCP() { return _timeToOpenTCP; }
+  uint32_t getTimeToCloseTCP() { return _timeToCloseTCP; }
+
 private:
   void initProlog(Stream &stream, size_t bufferSize);
 
@@ -339,6 +343,10 @@ private:
     prodid_SIM800,
   };
   enum productIdKind _productId;
+
+  uint32_t _timeToOpenTCP;
+  uint32_t _timeToCloseTCP;
+
 };
 
 extern GPRSbeeClass gprsbee;

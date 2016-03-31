@@ -69,6 +69,8 @@ Sodaq_GSM_Modem::Sodaq_GSM_Modem() :
 // Turns the modem on and returns true if successful.
 bool Sodaq_GSM_Modem::on()
 {
+    _startOn = millis();
+
     if (!isOn()) {
         if (_onoff) {
             _onoff->on();

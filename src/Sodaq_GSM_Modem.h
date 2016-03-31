@@ -364,6 +364,9 @@ protected:
     // Keep track if ATE0 was sent
     bool _echoOff;
 
+    // Keep track when connect started. Use this to record various status changes.
+    uint32_t _startOn;
+
     // Initializes the input buffer and makes sure it is only initialized once.
     // Safe to call multiple times.
     void initBuffer();

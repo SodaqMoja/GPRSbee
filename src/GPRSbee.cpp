@@ -99,6 +99,9 @@ void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
   _changedSkipCGATT = false;
 
   _productId = prodid_unknown;
+
+  _timeToOpenTCP = 0;
+  _timeToCloseTCP = 0;
 }
 
 bool GPRSbeeClass::isAlive()
@@ -855,6 +858,7 @@ bool GPRSbeeClass::openTCP(const char *apn, const char *apnuser, const char *apn
 
   _transMode = transMode;
   retval = true;
+  _timeToOpenTCP = millis() - _startOn;
   goto ending;
 
 cmd_error:
@@ -885,6 +889,7 @@ void GPRSbeeClass::closeTCP(bool switchOff)
   if (switchOff) {
     off();
   }
+  _timeToCloseTCP = millis() - _startOn;
 }
 
 bool GPRSbeeClass::isTCPConnected()
