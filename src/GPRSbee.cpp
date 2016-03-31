@@ -91,8 +91,6 @@ void GPRSbeeClass::initProlog(Stream &stream, size_t bufferSize)
   _modemStream = &stream;
   _diagStream = 0;
 
-  _minSignalQuality = 10;
-
   _ftpMaxLength = 0;
   _transMode = false;
 
@@ -121,8 +119,12 @@ void GPRSbeeClass::switchEchoOff()
   if (!_echoOff) {
     // Suppress echoing
     if (!sendCommandWaitForOK_P(PSTR("ATE0"))) {
-      return;
+        // We didn't get an OK
+        // Should we retry?
+        return;
     }
+    // Also disable URCs
+    disableCIURC();
     _echoOff = true;
   }
 }
@@ -615,31 +617,48 @@ bool GPRSbeeClass::networkOn()
   return status;
 }
 
+// Gets the Received Signal Strength Indication in dBm and Bit Error Rate.
+// Returns true if successful.
+bool GPRSbeeClass::getRSSIAndBER(int8_t* rssi, uint8_t* ber)
+{
+    static char berValues[] = { 49, 43, 37, 25, 19, 13, 7, 0 }; // 3GPP TS 45.008 [20] subclause 8.2.4
+    int rssiRaw = 0;
+    int berRaw = 0;
+    // TODO get BER value
+    if (getIntValue("AT+CSQ", "+CSQ:", &rssiRaw, millis() + 12000 )) {
+        *rssi = ((rssiRaw == 99) ? 0 : -113 + 2 * rssiRaw);
+        *ber = ((berRaw == 99 || static_cast<size_t>(berRaw) >= sizeof(berValues)) ? 0 : berValues[berRaw]);
+
+        return true;
+    }
+
+    return false;
+}
+
 bool GPRSbeeClass::waitForSignalQuality()
 {
-  /*
-   * The timeout is just a wild guess. If the mobile connection
-   * is really bad, or even absent, then it is a waste of time
-   * (and battery) to even try.
-   */
-  uint32_t start = millis();
-  uint32_t ts_max = start + 30000;
-  int value;
-  while (!isTimedOut(ts_max)) {
-    if (getIntValue("AT+CSQ", "+CSQ:", &value, millis() + 12000 )) {
-      if (value >= _minSignalQuality) {
-        _lastCSQ = value;
-        _CSQtime = (int32_t)(millis() - start) / 1000;
-        return true;
-      }
+    /*
+     * The timeout is just a wild guess. If the mobile connection
+     * is really bad, or even absent, then it is a waste of time
+     * (and battery) to even try.
+     */
+    uint32_t start = millis();
+    uint32_t ts_max = start + 30000;
+    int8_t rssi;
+    uint8_t ber;
+
+    while (!isTimedOut(ts_max)) {
+        if (getRSSIAndBER(&rssi, &ber)) {
+            if (rssi != 0 && rssi >= _minSignalQuality) {
+                _lastRSSI = rssi;
+                _CSQtime = (int32_t) (millis() - start) / 1000;
+                return true;
+            }
+        }
+        /*sodaq_wdt_safe_*/ delay(500);
     }
-    mydelay(500);
-    if (!isAlive()) {
-      break;
-    }
-  }
-  _lastCSQ = 0;
-  return false;
+    _lastRSSI = 0;
+    return false;
 }
 
 bool GPRSbeeClass::waitForCREG()

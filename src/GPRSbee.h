@@ -179,7 +179,7 @@ public:
   NetworkTechnologies getNetworkTechnology() { return UnknownNetworkTechnology; }
 
   // Get the Received Signal Strength Indication and Bit Error Rate
-  bool getRSSIAndBER(int8_t* rssi, uint8_t* ber) { return false; }
+  bool getRSSIAndBER(int8_t* rssi, uint8_t* ber);
 
   // Get the Operator Name
   bool getOperatorName(char* buffer, size_t size) { return false; }

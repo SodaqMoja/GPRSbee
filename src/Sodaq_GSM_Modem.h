@@ -160,10 +160,10 @@ public:
     // Returns true if the modem is connected to the network and has an activated data connection.
     virtual bool isConnected() = 0;
 
-    void setMinSignalQuality(int q) { _minSignalQuality = q; }
+    void setMinSignalQuality(int q);
     uint8_t getCSQtime() const { return _CSQtime; }
 
-    uint8_t getLastCSQ() const { return _lastCSQ; }
+    uint8_t getLastRSSI() const { return _lastRSSI; }
 
     // Returns the current status of the network.
     virtual NetworkRegistrationStatuses getNetworkStatus() = 0;
@@ -345,7 +345,15 @@ protected:
     bool _appendCommand;
 
     // This is the value of the most recent CSQ
-    uint8_t _lastCSQ;
+    // Notice that CSQ is somewhat standard. SIM800/SIM900 and Ublox
+    // compute to comparable numbers. With minor deviations.
+    // For example SIM800
+    //   1              -111 dBm
+    //   2...30         -110... -54 dBm
+    // For example UBlox
+    //   1              -111 dBm
+    //   2..30          -109 to -53 dBm
+    int8_t _lastRSSI;   // 0 not known or not detectable
 
     // This is the number of second it took when CSQ was record last
     uint8_t _CSQtime;

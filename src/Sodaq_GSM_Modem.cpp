@@ -59,9 +59,9 @@ Sodaq_GSM_Modem::Sodaq_GSM_Modem() :
     _onoff(0),
     _baudRateChangeCallbackPtr(0),
     _appendCommand(false),
-    _lastCSQ(0),
+    _lastRSSI(0),
     _CSQtime(0),
-    _minSignalQuality(10)
+    _minSignalQuality(-93)      // -93 dBm
 {
     this->_isBufferInitialized = false;
 }
@@ -328,6 +328,16 @@ void Sodaq_GSM_Modem::setPin(const char * pin)
     strcpy(_pin, pin);
 }
 
+void Sodaq_GSM_Modem::setMinSignalQuality(int q)
+{
+    if (q < 0) {
+        _minSignalQuality = q;
+    } else {
+        // This is correct for UBlox
+        // For SIM is is close enough
+        _minSignalQuality = -113 + 2 * q;
+    }
+}
 // Returns a character from the modem stream if read within _timeout ms or -1 otherwise.
 int Sodaq_GSM_Modem::timedRead(uint32_t timeout) const
 {
