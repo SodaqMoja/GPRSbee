@@ -100,8 +100,6 @@ private:
 class GPRSbeeClass : public Sodaq_GSM_Modem
 {
 public:
-  void init(Stream &stream, int ctsPin, int powerPin,
-      int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
   void initNdogoSIM800(Stream &stream, int pwrkeyPin, int vbatPin, int statusPin,
       int bufferSize=SIM900_DEFAULT_BUFFER_SIZE);
   void initAutonomoSIM800(Stream &stream, int vcc33Pin, int onoffPin, int statusPin,
